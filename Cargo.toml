@@ -20,7 +20,7 @@ features = ["nightly"]
 [dependencies]
 rand_core = "0.5"
 thiserror = "1.0"
-blake2b_simd = "0.5"
+blake2b_simd = { version = "0.5", optional = true }
 jubjub = "0.3"
 serde = { version = "1", optional = true, features = ["derive"] }
 
@@ -33,4 +33,4 @@ bincode = "1"
 
 [features]
 nightly = []
-default = ["serde"]
+default = ["serde", "blake2b_simd"]

@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, marker::PhantomData};
 
-use crate::{Error, Randomizer, Scalar, SigType, Signature, SpendAuth};
+use crate::{Blake2b512, Error, Randomizer, Scalar, SigType, Signature, SpendAuth};
 
 /// A refinement type for `[u8; 32]` indicating that the bytes represent
 /// an encoding of a RedJubJub public key.
@@ -124,7 +124,7 @@ impl<T: SigType> PublicKey<T> {
 
     /// Verify a purported `signature` over `msg` made by this public key.
     // This is similar to impl signature::Verifier but without boxed errors
-    pub fn verify(&self, msg: &[u8], signature: &Signature<T>) -> Result<(), Error> {
+    pub fn verify<H: Blake2b512>(&self, msg: &[u8], signature: &Signature<T>) -> Result<(), Error> {
         #![allow(non_snake_case)]
         use crate::HStar;
 
@@ -149,7 +149,7 @@ impl<T: SigType> PublicKey<T> {
             }
         };
 
-        let c = HStar::default()
+        let c = HStar::<H>::default()
             .update(&signature.r_bytes[..])
             .update(&self.bytes.bytes[..]) // XXX ugly
             .update(msg)
