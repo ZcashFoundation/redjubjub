@@ -3,7 +3,7 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::{Error, PublicKey, Randomizer, Scalar, SigType, Signature, SpendAuth};
+use crate::{Blake2b512, Error, PublicKey, Randomizer, Scalar, SigType, Signature, SpendAuth};
 
 use rand_core::{CryptoRng, RngCore};
 
@@ -86,7 +86,11 @@ impl<T: SigType> SecretKey<T> {
 
     /// Create a signature of type `T` on `msg` using this `SecretKey`.
     // Similar to signature::Signer but without boxed errors.
-    pub fn sign<R: RngCore + CryptoRng>(&self, mut rng: R, msg: &[u8]) -> Signature<T> {
+    pub fn sign<H: Blake2b512, R: RngCore + CryptoRng>(
+        &self,
+        mut rng: R,
+        msg: &[u8],
+    ) -> Signature<T> {
         use crate::HStar;
 
         // Choose a byte sequence uniformly at random of length
@@ -97,7 +101,7 @@ impl<T: SigType> SecretKey<T> {
             bytes
         };
 
-        let nonce = HStar::default()
+        let nonce = HStar::<H>::default()
             .update(&random_bytes[..])
             .update(&self.pk.bytes.bytes[..]) // XXX ugly
             .update(msg)
@@ -105,7 +109,7 @@ impl<T: SigType> SecretKey<T> {
 
         let r_bytes = jubjub::AffinePoint::from(&T::basepoint() * &nonce).to_bytes();
 
-        let c = HStar::default()
+        let c = HStar::<H>::default()
             .update(&r_bytes[..])
             .update(&self.pk.bytes.bytes[..]) // XXX ugly
             .update(msg)

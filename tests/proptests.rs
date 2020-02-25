@@ -38,7 +38,7 @@ enum Tweak {
 impl<T: SigType> SignatureCase<T> {
     fn new<R: RngCore + CryptoRng>(mut rng: R, msg: Vec<u8>) -> Self {
         let sk = SecretKey::new(&mut rng);
-        let sig = sk.sign(&mut rng, &msg);
+        let sig = sk.sign::<StdBlake2b512, _>(&mut rng, &msg);
         let pk_bytes = PublicKey::from(&sk).into();
         Self {
             msg,
@@ -64,7 +64,7 @@ impl<T: SigType> SignatureCase<T> {
         // Check that signature validation has the expected result.
         self.is_valid
             == PublicKey::try_from(pk_bytes)
-                .and_then(|pk| pk.verify(&self.msg, &sig))
+                .and_then(|pk| pk.verify::<StdBlake2b512>(&self.msg, &sig))
                 .is_ok()
     }
 

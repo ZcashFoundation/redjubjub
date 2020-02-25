@@ -19,7 +19,10 @@ pub type Randomizer = jubjub::Fr;
 // XXX-jubjub: upstream this name
 type Scalar = jubjub::Fr;
 
-use hash::HStar;
+use hash::{Blake2b512, HStar};
+
+#[cfg(feature = "blake2b_simd")]
+pub use hash::StdBlake2b512;
 
 pub use error::Error;
 pub use public_key::{PublicKey, PublicKeyBytes};
