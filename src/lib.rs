@@ -1,7 +1,7 @@
 #![doc(html_root_url = "https://docs.rs/redjubjub/0.2.2")]
 #![cfg_attr(feature = "nightly", feature(external_doc))]
 #![cfg_attr(feature = "nightly", doc(include = "../README.md"))]
-//#![deny(missing_docs)]
+#![deny(missing_docs)]
 
 //! Docs require the `nightly` feature until RFC 1990 lands.
 
@@ -13,6 +13,10 @@ mod scalar_mul;
 mod signature;
 mod signing_key;
 mod verification_key;
+
+#[cfg_attr(feature = "nightly", doc(cfg(feature = "frost")))]
+#[cfg(feature = "frost")]
+pub mod frost;
 
 /// An element of the JubJub scalar field used for randomization of public and secret keys.
 pub type Randomizer = jubjub::Fr;

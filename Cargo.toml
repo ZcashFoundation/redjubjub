@@ -37,6 +37,7 @@ rand_chacha = "0.2"
 [features]
 nightly = []
 default = ["serde"]
+frost = []
 
 [[bench]]
 name = "bench"
