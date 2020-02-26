@@ -1,7 +1,7 @@
 #![doc(html_root_url = "https://docs.rs/redjubjub/0.2.2")]
 #![cfg_attr(feature = "nightly", feature(external_doc))]
 #![cfg_attr(feature = "nightly", doc(include = "../README.md"))]
-#![deny(missing_docs)]
+//#![deny(missing_docs)]
 
 //! Docs require the `nightly` feature until RFC 1990 lands.
 
