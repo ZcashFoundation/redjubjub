@@ -19,20 +19,12 @@ pub struct AwaitingCommitmentShares {
 /// This API does not handle sending the message to be signed to those
 /// participants; they begin with
 /// [`SecretShare::begin_sign`](super::SecretShare::begin_sign).
-pub fn begin_sign(participants: SigningParticipants) -> AwaitingCommitmentShares {
+pub fn begin_sign(_participants: SigningParticipants) -> AwaitingCommitmentShares {
     unimplemented!();
-}
-
-pub struct CommitmentShareSet {
-    // ??
 }
 
 pub struct Commitment {
     // ???
-}
-
-pub struct ResponseShareSet {
-    // ??
 }
 
 pub struct AwaitingResponseShares {
@@ -42,14 +34,17 @@ pub struct AwaitingResponseShares {
 impl AwaitingCommitmentShares {
     pub fn recv(
         self,
-        shares: CommitmentShareSet,
+        _shares: impl Iterator<Item = signer::CommitmentShare>,
     ) -> Result<(AwaitingResponseShares, Commitment), Error> {
         unimplemented!();
     }
 }
 
 impl AwaitingResponseShares {
-    pub fn recv(self, responses: ResponseShareSet) -> Result<Signature<SpendAuth>, Error> {
+    pub fn recv(
+        self,
+        _responses: impl Iterator<Item = signer::ResponseShare>,
+    ) -> Result<Signature<SpendAuth>, Error> {
         unimplemented!();
     }
 }

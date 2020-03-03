@@ -39,19 +39,6 @@ pub struct Commitment {
     id: usize,
 }
 
-pub struct CommitmentSet {
-    // holds 1 per party
-}
-
-impl CommitmentSet {
-    pub fn collect(
-        config: &Config,
-        commitments: impl Iterator<Item = Commitment>,
-    ) -> Result<Self, Error> {
-        unimplemented!();
-    }
-}
-
 pub struct AwaitingCommitments {
     // ???
 }
@@ -62,35 +49,25 @@ pub struct KeygenShare {
     // ??
 }
 
-pub struct KeygenShareSet {
-    // ???
-}
-
-impl KeygenShareSet {
-    pub fn collect(
-        config: &Config,
-        commitments: impl Iterator<Item = KeygenShare>,
-    ) -> Result<Self, Error> {
-        unimplemented!();
-    }
-}
-
 pub struct AwaitingShares {
     // ???
 }
 
-pub fn begin_keygen(config: Config) -> (AwaitingCommitments, Commitment) {
+pub fn begin_keygen(_config: Config) -> (AwaitingCommitments, Commitment) {
     unimplemented!();
 }
 
 impl AwaitingCommitments {
-    pub fn recv(self, commitments: CommitmentSet) -> (AwaitingShares, KeygenShare) {
+    pub fn recv(
+        self,
+        _commitments: impl Iterator<Item = Commitment>,
+    ) -> Result<(AwaitingShares, KeygenShare), Error> {
         unimplemented!();
     }
 }
 
 impl AwaitingShares {
-    pub fn recv(self, shares: KeygenShareSet) -> Result<SecretShare, Error> {
+    pub fn recv(self, _shares: impl Iterator<Item = KeygenShare>) -> Result<SecretShare, Error> {
         unimplemented!();
     }
 }

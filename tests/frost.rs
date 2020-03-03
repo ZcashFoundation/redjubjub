@@ -46,11 +46,8 @@ async fn keygen_and_sign() {
                 .send(commitment)
                 .expect("must be able to broadcast commitments");
 
-            let (state, keygen_share) = state.recv(
-                // This is a bit awkward. Maybe we should do away with
-                // CommitmentSet entirely?
-                keygen::CommitmentSet::collect(
-                    &config,
+            let (state, keygen_share) = state
+                .recv(
                     commitments_rx
                         .take(num_shares)
                         .try_collect::<Vec<_>>()
@@ -58,8 +55,7 @@ async fn keygen_and_sign() {
                         .expect("receiving broadcasts should not fail")
                         .into_iter(),
                 )
-                .expect("must have received all required commitments"),
-            );
+                .expect("must have received all required commitments");
 
             keygen_shares_tx
                 .send(keygen_share)
@@ -67,17 +63,12 @@ async fn keygen_and_sign() {
 
             let _share = state
                 .recv(
-                    // This is also awkward, for the same reason as above.
-                    keygen::KeygenShareSet::collect(
-                        &config,
-                        keygen_shares_rx
-                            .take(num_shares)
-                            .try_collect::<Vec<_>>()
-                            .await
-                            .expect("receiving broadcasts should not fail")
-                            .into_iter(),
-                    )
-                    .expect("must have received all required keygen shares"),
+                    keygen_shares_rx
+                        .take(num_shares)
+                        .try_collect::<Vec<_>>()
+                        .await
+                        .expect("receiving broadcasts should not fail")
+                        .into_iter(),
                 )
                 .expect("key generation should succeed");
 

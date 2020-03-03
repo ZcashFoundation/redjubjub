@@ -22,7 +22,7 @@
 
 use thiserror::Error;
 
-use super::{aggregator, Config, SecretShare, SigningParticipants};
+use super::{aggregator, SecretShare, SigningParticipants};
 
 /// An error arising from the signers' part of the signing protocol.
 #[derive(Error, Debug, Copy, Clone, Eq, PartialEq)]
@@ -42,8 +42,8 @@ impl SecretShare {
     /// Drijvers et al.
     pub fn begin_sign<'ss, M: AsRef<[u8]>>(
         &'ss mut self,
-        msg: M,
-        participants: SigningParticipants,
+        _msg: M,
+        _participants: SigningParticipants,
     ) -> Result<AwaitingCommitment<'ss>, Error> {
         unimplemented!()
     }
@@ -56,7 +56,7 @@ impl SecretShare {
 /// signing operation can be performed at a time, using the borrow checker to
 /// prove that the attack of Drijvers et al. is infeasible.
 pub struct AwaitingCommitment<'ss> {
-    ss: &'ss mut SecretShare,
+    _ss: &'ss mut SecretShare,
 }
 
 pub struct CommitmentShare {
@@ -68,7 +68,7 @@ pub struct ResponseShare {
 }
 
 impl<'ss> AwaitingCommitment<'ss> {
-    pub fn recv(self, commitment: aggregator::Commitment) -> ResponseShare {
+    pub fn recv(self, _commitment: aggregator::Commitment) -> ResponseShare {
         unimplemented!();
     }
 }
