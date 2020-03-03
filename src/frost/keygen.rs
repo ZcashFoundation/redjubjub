@@ -43,9 +43,8 @@ pub struct AwaitingCommitments {
     // ???
 }
 
-/// XXX rename this? it's only short-lived
 #[derive(Debug, Clone)]
-pub struct KeygenShare {
+pub struct Share {
     // ??
 }
 
@@ -61,13 +60,13 @@ impl AwaitingCommitments {
     pub fn recv(
         self,
         _commitments: impl Iterator<Item = Commitment>,
-    ) -> Result<(AwaitingShares, KeygenShare), Error> {
+    ) -> Result<(AwaitingShares, Share), Error> {
         unimplemented!();
     }
 }
 
 impl AwaitingShares {
-    pub fn recv(self, _shares: impl Iterator<Item = KeygenShare>) -> Result<SecretShare, Error> {
+    pub fn recv(self, _shares: impl Iterator<Item = Share>) -> Result<SecretShare, Error> {
         unimplemented!();
     }
 }
