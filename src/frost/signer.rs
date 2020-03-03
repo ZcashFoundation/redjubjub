@@ -32,6 +32,14 @@ pub enum Error {
 }
 
 impl SecretShare {
+    /// Begin the distributed signing protocol with this share.
+    ///
+    /// The state machine for the signing protocol is encoded into Rust types.
+    /// These states hold a mutable borrow of the `SecretShare` so that the
+    /// borrow checker enforces at compile time that only one run of the protocol
+    /// can be performed at a time, and multiple concurrent runs of the protocol
+    /// with the same secret are not possible. This prevents an attack of
+    /// Drijvers et al.
     pub fn begin_sign<'ss, M: AsRef<[u8]>>(
         &'ss mut self,
         msg: M,

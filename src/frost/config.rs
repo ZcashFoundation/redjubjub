@@ -1,4 +1,5 @@
 /// Configuration data for FROST shares.
+#[derive(Clone, Copy, Debug)]
 pub struct Config {
     /// The total number of shares for threshold signatures.
     pub num_shares: usize,

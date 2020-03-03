@@ -34,6 +34,7 @@ pub enum Error {
     InvalidShare(usize),
 }
 
+#[derive(Debug, Clone)]
 pub struct Commitment {
     id: usize,
 }
@@ -56,6 +57,7 @@ pub struct AwaitingCommitments {
 }
 
 /// XXX rename this? it's only short-lived
+#[derive(Debug, Clone)]
 pub struct KeygenShare {
     // ??
 }

@@ -33,6 +33,11 @@ lazy_static = "1.4"
 proptest = "0.10"
 rand = "0.7"
 rand_chacha = "0.2"
+proptest = "0.9"
+lazy_static = "1.4"
+bincode = "1"
+tokio = { version = "0.2", features = ["full"] }
+futures = "0.3"
 
 [features]
 nightly = []
@@ -42,3 +47,7 @@ frost = []
 [[bench]]
 name = "bench"
 harness = false
+
+[[test]]
+name = "frost"
+required-features = ["frost"]
