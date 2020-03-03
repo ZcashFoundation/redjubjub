@@ -23,6 +23,7 @@ pub fn begin_sign(_participants: SigningParticipants) -> AwaitingCommitmentShare
     unimplemented!();
 }
 
+#[derive(Clone, Debug)]
 pub struct Commitment {
     // ???
 }
