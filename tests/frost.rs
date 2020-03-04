@@ -7,15 +7,47 @@ type SignRequest = (&'static [u8], oneshot::Sender<SignResult>);
 
 async fn run_aggregator(
     // this could be a good reason to split out the share_id from config
-    _num_parties: usize,
-    _threshold: usize,
-    _request_rx: mpsc::Receiver<SignRequest>,
-    _message_tx: watch::Sender<Option<(&'static [u8], SigningParticipants)>>,
-    _commitment_share_rx: mpsc::Receiver<signer::CommitmentShare>,
-    _commitment_tx: watch::Sender<Option<aggregator::Commitment>>,
-    _response_share_rx: mpsc::Receiver<signer::ResponseShare>,
+    _num_shares: usize,
+    threshold: usize,
+    mut request_rx: mpsc::Receiver<SignRequest>,
+    message_tx: watch::Sender<Option<(&'static [u8], SigningParticipants)>>,
+    mut commitment_share_rx: mpsc::Receiver<signer::CommitmentShare>,
+    commitment_tx: watch::Sender<Option<aggregator::Commitment>>,
+    mut response_share_rx: mpsc::Receiver<signer::ResponseShare>,
 ) {
-    unimplemented!();
+    while let Some((msg, response)) = request_rx.next().await {
+        let participants = (0..threshold).collect::<Vec<usize>>();
+        let state = aggregator::begin_sign(participants.clone());
+
+        // XXX check whether we need to send the participants list.
+        message_tx
+            .broadcast(Some((msg, participants)))
+            .expect("message broadcast should succeed");
+
+        let (state, commitment) = state
+            .recv(
+                (&mut commitment_share_rx)
+                    .take(threshold)
+                    .collect::<Vec<_>>()
+                    .await
+                    .into_iter(),
+            )
+            .expect("must have received all required commitments");
+
+        commitment_tx
+            .broadcast(Some(commitment))
+            .expect("commitment broadcast should succeed");
+
+        let sig_result = state.recv(
+            (&mut response_share_rx)
+                .take(threshold)
+                .collect::<Vec<_>>()
+                .await
+                .into_iter(),
+        );
+
+        let _ = response.send(sig_result);
+    }
 }
 
 async fn run_party(
@@ -23,10 +55,10 @@ async fn run_party(
     mut start_rx: watch::Receiver<()>,
     keygen_commitments_tx: broadcast::Sender<keygen::Commitment>,
     keygen_shares_tx: broadcast::Sender<keygen::Share>,
-    _signing_message_rx: watch::Receiver<Option<(&'static [u8], SigningParticipants)>>,
-    _signing_commitment_share_tx: mpsc::Sender<signer::CommitmentShare>,
-    _signing_commitment_rx: watch::Receiver<Option<aggregator::Commitment>>,
-    _signing_response_share_tx: mpsc::Sender<signer::ResponseShare>,
+    mut signing_message_rx: watch::Receiver<Option<(&'static [u8], SigningParticipants)>>,
+    mut signing_commitment_share_tx: mpsc::Sender<signer::CommitmentShare>,
+    mut signing_commitment_rx: watch::Receiver<Option<aggregator::Commitment>>,
+    mut signing_response_share_tx: mpsc::Sender<signer::ResponseShare>,
 ) {
     let keygen_commitments_rx = keygen_commitments_tx.subscribe();
     let keygen_shares_rx = keygen_shares_tx.subscribe();
@@ -56,7 +88,7 @@ async fn run_party(
         .send(keygen_share)
         .expect("must be able to broadcast keygen share");
 
-    let _share = state
+    let mut share = state
         .recv(
             keygen_shares_rx
                 .take(config.num_shares)
@@ -68,7 +100,38 @@ async fn run_party(
         .expect("key generation should succeed");
 
     // Now receive messages from the aggregator and do the signing protocol.
-    unimplemented!();
+    while let Some(Some((msg, participants))) = signing_message_rx.next().await {
+        // Check whether we are participating in signing
+        if !participants.contains(&config.share_id) {
+            continue;
+        }
+
+        // here is where we could check the message contents.
+        // instead, blindly sign whatever we get! yolo
+
+        // XXX do we need to pass in participants here?
+        let (state, commitment_share) = share
+            .begin_sign(msg, participants)
+            .expect("XXX try to remember why this is fallible??");
+
+        signing_commitment_share_tx
+            .send(commitment_share)
+            .await
+            .expect("sending commitment share should succeed");
+
+        let response_share = state.recv(
+            signing_commitment_rx
+                .next()
+                .await
+                .expect("broadcast channel should not close")
+                .expect("should not have dummy value to work around tokio defaults"),
+        );
+
+        signing_response_share_tx
+            .send(response_share)
+            .await
+            .expect("sending response share should succeed");
+    }
 }
 
 #[tokio::test]
@@ -102,6 +165,18 @@ async fn keygen_and_sign() {
 
     // construct an aggregator that communicates with the party tasks
 
+    let (mut request_tx, request_rx) = mpsc::channel(1);
+
+    task_handles.push(tokio::spawn(run_aggregator(
+        num_shares,
+        threshold,
+        request_rx,
+        signing_message_tx,
+        signing_commitment_share_rx,
+        signing_commitment_tx,
+        signing_response_share_rx,
+    )));
+
     for share_id in 0..num_shares {
         let handle = tokio::spawn(run_party(
             Config {
@@ -128,10 +203,28 @@ async fn keygen_and_sign() {
 
     // request signing...
 
-    // check signatures...
+    for msg in &[b"AAA", b"BBB", b"CCC"] {
+        let (tx, rx) = oneshot::channel();
+        request_tx
+            .send((msg.as_ref(), tx))
+            .await
+            .expect("sending sign request should succeed");
 
-    // check no panics...
+        match rx.await {
+            Ok(_sig) => {
+                // how is publickey formed???
+                unimplemented!("verify signature");
+            }
+            Err(e) => panic!("got error {}", e),
+        }
+    }
 
+    // We only have one sender handle, so dropping it drops all sender handles
+    // and closes the channel. This *should* cause all tasks to shut down
+    // cleanly.
+    drop(request_tx);
+
+    // Check that all tasks shut down without errors.
     for handle in task_handles.into_iter() {
         assert!(handle.await.is_ok());
     }

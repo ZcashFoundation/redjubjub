@@ -44,7 +44,7 @@ impl SecretShare {
         &'ss mut self,
         _msg: M,
         _participants: SigningParticipants,
-    ) -> Result<AwaitingCommitment<'ss>, Error> {
+    ) -> Result<(AwaitingCommitment<'ss>, CommitmentShare), Error> {
         unimplemented!()
     }
 }
@@ -59,10 +59,12 @@ pub struct AwaitingCommitment<'ss> {
     _ss: &'ss mut SecretShare,
 }
 
+#[derive(Clone, Debug)]
 pub struct CommitmentShare {
     // ???
 }
 
+#[derive(Clone, Debug)]
 pub struct ResponseShare {
     // ???
 }
