@@ -1,5 +1,5 @@
 use futures::prelude::*;
-use redjubjub::{frost::*, Signature, SpendAuth};
+use redjubjub::{frost::*, PublicKey, PublicKeyBytes, Signature, SpendAuth};
 use tokio::sync::{broadcast, mpsc, oneshot, watch};
 
 type SignResult = Result<Signature<SpendAuth>, aggregator::Error>;
@@ -55,6 +55,7 @@ async fn run_party(
     mut start_rx: watch::Receiver<()>,
     keygen_commitments_tx: broadcast::Sender<keygen::Commitment>,
     keygen_shares_tx: broadcast::Sender<keygen::Share>,
+    mut pubkey_tx: mpsc::Sender<PublicKey<SpendAuth>>,
     mut signing_message_rx: watch::Receiver<Option<(&'static [u8], SigningParticipants)>>,
     mut signing_commitment_share_tx: mpsc::Sender<signer::CommitmentShare>,
     mut signing_commitment_rx: watch::Receiver<Option<aggregator::Commitment>>,
@@ -98,6 +99,11 @@ async fn run_party(
                 .into_iter(),
         )
         .expect("key generation should succeed");
+
+    pubkey_tx
+        .send((&share).into())
+        .await
+        .expect("must be able to report public key");
 
     // Now receive messages from the aggregator and do the signing protocol.
     while let Some(Some((msg, participants))) = signing_message_rx.next().await {
@@ -147,6 +153,8 @@ async fn keygen_and_sign() {
     let (keygen_commitments_tx, _) = broadcast::channel(num_shares);
     let (keygen_shares_tx, _) = broadcast::channel(num_shares);
 
+    let (pubkey_tx, pubkey_rx) = mpsc::channel(num_shares);
+
     // Somewhat unintuitive tokio behavior: `watch` channels
     // have a default value, so we set the default to None
     // and then pull it out, so that recv calls to (any clones of)
@@ -187,6 +195,7 @@ async fn keygen_and_sign() {
             start_rx.clone(),
             keygen_commitments_tx.clone(),
             keygen_shares_tx.clone(),
+            pubkey_tx.clone(),
             signing_message_rx.clone(),
             signing_commitment_share_tx.clone(),
             signing_commitment_rx.clone(),
@@ -201,6 +210,15 @@ async fn keygen_and_sign() {
         .broadcast(())
         .expect("send broadcast should succeed");
 
+    let all_pubkeys = pubkey_rx.take(num_shares).collect::<Vec<_>>().await;
+    let pubkey = all_pubkeys[0];
+
+    // Since we're testing, let's enforce consistency
+    // in pubkey generation
+    for pk in &all_pubkeys {
+        assert_eq!(PublicKeyBytes::from(*pk), PublicKeyBytes::from(pubkey));
+    }
+
     // request signing...
 
     for msg in &[b"AAA", b"BBB", b"CCC"] {
@@ -211,10 +229,10 @@ async fn keygen_and_sign() {
             .expect("sending sign request should succeed");
 
         match rx.await {
-            Ok(_sig) => {
-                // how is publickey formed???
-                unimplemented!("verify signature");
+            Ok(Ok(sig)) => {
+                assert!(pubkey.verify(msg.as_ref(), &sig).is_ok());
             }
+            Ok(Err(e)) => panic!("got error {}", e),
             Err(e) => panic!("got error {}", e),
         }
     }
