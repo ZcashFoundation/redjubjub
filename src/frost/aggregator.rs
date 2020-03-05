@@ -10,6 +10,8 @@ pub enum Error {
     InvalidSigners,
 }
 
+/// An intermediate protocol state, awaiting [`signer::CommitmentShare`]s from
+/// each [`SecretShare`](super::SecretShare) holder.
 pub struct AwaitingCommitmentShares {
     // ??
 }
@@ -18,21 +20,26 @@ pub struct AwaitingCommitmentShares {
 ///
 /// This API does not handle sending the message to be signed to those
 /// participants; they begin with
-/// [`SecretShare::begin_sign`](super::SecretShare::begin_sign).
+/// [`SecretShare::begin_sign`](super::SecretShare::begin_sign), which assumes
+/// knowledge of the message and the signing participants. This coordination is
+/// left to the user of the library, since it is likely to be
+/// application-dependent.
 pub fn begin_sign(_participants: SigningParticipants) -> AwaitingCommitmentShares {
     unimplemented!();
 }
 
+/// A message containing the aggregation of each signer's [`signer::CommitmentShare`].
 #[derive(Clone, Debug)]
 pub struct Commitment {
     // ???
 }
 
-pub struct AwaitingResponseShares {
-    // ???
-}
-
 impl AwaitingCommitmentShares {
+    /// Continue the signing protocol after receiving each signer's
+    /// [`signer::CommitmentShare`].
+    ///
+    /// This returns the next state, [`AwaitingResponseShares`], and a
+    /// [`Commitment`] which should be sent to each signer.
     pub fn recv(
         self,
         _shares: impl Iterator<Item = signer::CommitmentShare>,
@@ -41,7 +48,15 @@ impl AwaitingCommitmentShares {
     }
 }
 
+/// An intermediate protocol state, awaiting [`signer::ResponseShare`]s from each
+/// [`SecretShare`](super::SecretShare) holder.
+pub struct AwaitingResponseShares {
+    // ???
+}
+
 impl AwaitingResponseShares {
+    /// Finish the signing protocol once [`signer::ResponseShare`]s have been
+    /// received from all signers, producing a signature.
     pub fn recv(
         self,
         _responses: impl Iterator<Item = signer::ResponseShare>,

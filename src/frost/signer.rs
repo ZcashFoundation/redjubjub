@@ -49,7 +49,15 @@ impl SecretShare {
     }
 }
 
-/// An intermediate signing state awaiting the group commitment.
+/// A message containing a single participant's share of the commitment component
+/// of a signature, sent to the aggregator in the first round of the signing
+/// protocol.
+#[derive(Clone, Debug)]
+pub struct CommitmentShare {
+    // ???
+}
+
+/// An intermediate protocol state, awaiting an [`aggregator::Commitment`].
 ///
 /// The `'ss` lifetime is the lifetime of the [`SecretShare`] used for signing.
 /// This struct holds a mutable reference to the share to ensure that only one
@@ -59,18 +67,26 @@ pub struct AwaitingCommitment<'ss> {
     _ss: &'ss mut SecretShare,
 }
 
-#[derive(Clone, Debug)]
-pub struct CommitmentShare {
-    // ???
-}
-
-#[derive(Clone, Debug)]
-pub struct ResponseShare {
-    // ???
-}
-
 impl<'ss> AwaitingCommitment<'ss> {
+    /// Continue the signing protocol after receiving the
+    /// [`aggregator::Commitment`] that combines the commitments from each
+    /// participant.
+    ///
+    /// This returns the participant's [`ResponseShare`], which is sent to the
+    /// aggregator, who produces the final [`Signature`](crate::Signature).
+    ///
+    /// Note that because this function consumes `self`, which holds a `&mut
+    /// SecretShare`, it releases the lock on the [`SecretShare`] used in the
+    /// signing protocol.
     pub fn recv(self, _commitment: aggregator::Commitment) -> ResponseShare {
         unimplemented!();
     }
+}
+
+/// A message containg a single participant's share of the response component of
+/// a signature, sent to the aggregator in the second round of the signing
+/// protocol.
+#[derive(Clone, Debug)]
+pub struct ResponseShare {
+    // ???
 }
