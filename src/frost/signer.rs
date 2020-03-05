@@ -34,18 +34,27 @@ pub enum Error {
 impl SecretShare {
     /// Begin the distributed signing protocol with this share.
     ///
-    /// The state machine for the signing protocol is encoded into Rust types.
-    /// These states hold a mutable borrow of the `SecretShare` so that the
-    /// borrow checker enforces at compile time that only one run of the protocol
-    /// can be performed at a time, and multiple concurrent runs of the protocol
-    /// with the same secret are not possible. This prevents an attack of
-    /// Drijvers et al.
+    /// The state machine for the signing protocol is encoded into Rust types. These
+    /// states hold a mutable reference to the `SecretShare`. Since only one mutable
+    /// reference to the same object can exist at a time, one run of the signing
+    /// protocol can be performed at a time.
+    ///
+    /// This means we can leverage the borrow checker to statically prove that the
+    /// attack of [Drijvers et al][drijvers], which relies on parallel runs of the
+    /// signing protocol, is infeasible to perform on *any* compilable use of this
+    /// library's API. More information on that attack and its implications for FROST
+    /// can be found [in this CFRG posting][cfrg] or in the [FROST paper][frost_paper].
+    ///
+    /// [drijvers]: https://eprint.iacr.org/2018/417.pdf
+    /// [cfrg]: https://mailarchive.ietf.org/arch/msg/cfrg/USYUleqIjS-mq93oGPSV-Tu0ndQ/
+    /// [frost_paper]: https://crysp.uwaterloo.ca/software/frost/
     pub fn begin_sign<'ss, M: AsRef<[u8]>>(
         &'ss mut self,
         _msg: M,
         _participants: SigningParticipants,
     ) -> Result<(AwaitingCommitment<'ss>, CommitmentShare), Error> {
-        unimplemented!()
+        // dummy code: ensures that we can hand self to AwaitingCommitment.
+        Ok((AwaitingCommitment { _ss: self }, CommitmentShare {}))
     }
 }
 
@@ -61,8 +70,7 @@ pub struct CommitmentShare {
 ///
 /// The `'ss` lifetime is the lifetime of the [`SecretShare`] used for signing.
 /// This struct holds a mutable reference to the share to ensure that only one
-/// signing operation can be performed at a time, using the borrow checker to
-/// prove that the attack of Drijvers et al. is infeasible.
+/// signing operation can be performed at a time.
 pub struct AwaitingCommitment<'ss> {
     _ss: &'ss mut SecretShare,
 }
