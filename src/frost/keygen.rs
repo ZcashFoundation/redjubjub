@@ -60,17 +60,19 @@ pub struct AwaitingShares {
     // ???
 }
 
-/// Begin the key generation protocol with the given [`Config`].
-///
-/// This function is called by each participant (future key share holder). It
-/// returns the next state, [`AwaitingCommitments`], and a [`Commitment`] which
-/// should be sent to each other participant in the protocol.
-///
-/// The coordination of who those participants are, and how they agree on the key
-/// generation parameters, is left to the user of the library, as it is likely
-/// application-dependent.
-pub fn begin_keygen(_config: Config) -> (AwaitingCommitments, Commitment) {
-    unimplemented!();
+impl SecretShare {
+    /// Begin the key generation protocol with the given [`Config`].
+    ///
+    /// This function is called by each participant (future key share holder). It
+    /// returns the next state, [`AwaitingCommitments`], and a [`Commitment`] which
+    /// should be sent to each other participant in the protocol.
+    ///
+    /// The coordination of who those participants are, and how they agree on the key
+    /// generation parameters, is left to the user of the library, as it is likely
+    /// application-dependent.
+    pub fn begin_keygen(_config: Config) -> (AwaitingCommitments, Commitment) {
+        unimplemented!();
+    }
 }
 
 impl AwaitingCommitments {

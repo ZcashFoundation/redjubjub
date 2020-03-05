@@ -11,7 +11,7 @@
 //!
 //! The states and messages for each protocol are contained in this module's
 //! submodules. The distributed key generation protocol is run by the share
-//! holders. Its entrypoint is [`keygen::begin_keygen`]. The signing protocol is
+//! holders. Its entrypoint is [`SecretShare::begin_keygen`]. The signing protocol is
 //! coördinated by an untrusted aggregator. This can be one of the share holders,
 //! but it is represented seperately because it could be a third party. The
 //! entrypoint for the aggregator's part of the signing protocol is

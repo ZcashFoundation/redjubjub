@@ -68,7 +68,7 @@ async fn run_party(
     // parties' tasks' broadcast receivers have been constructed.
     let _ = start_rx.recv().await;
 
-    let (state, keygen_commitment) = keygen::begin_keygen(config.clone());
+    let (state, keygen_commitment) = SecretShare::begin_keygen(config.clone());
 
     keygen_commitments_tx
         .send(keygen_commitment)
