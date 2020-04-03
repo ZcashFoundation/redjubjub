@@ -113,7 +113,7 @@ impl PublicKey<SpendAuth> {
 }
 
 impl<T: SigType> PublicKey<T> {
-    pub(crate) fn from_secret(s: &Scalar) -> PublicKey<T> {
+    pub fn from_secret(s: &Scalar) -> PublicKey<T> {
         let point = &T::basepoint() * s;
         let bytes = PublicKeyBytes {
             bytes: jubjub::AffinePoint::from(&point).to_bytes(),
