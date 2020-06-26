@@ -286,7 +286,7 @@ impl<T: SigType> Verifier<T> {
 
                 let z = Scalar::from_raw(gen_128_bits(&mut rng));
 
-                P_coeff += z * s;
+                P_coeff -= z * s;
 
                 Rs.push(R);
                 R_coeffs.push(z);
