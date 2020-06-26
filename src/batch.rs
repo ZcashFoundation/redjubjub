@@ -223,11 +223,11 @@ impl<T: SigType> Verifier<T> {
     ///
     /// The batch verification equation is:
     ///
-    /// h_G * [sum(z_i * s_i)]P_G + sum([z_i]R_i + [z_i * c_i]VK_i) = 0_G
+    /// h_G * -[sum(z_i * s_i)]P_G + sum([z_i]R_i + [z_i * c_i]VK_i) = 0_G
     ///
     /// which we split out into:
     ///
-    /// h_G * [sum(z_i * s_i)]P_G + sum([z_i]R_i) + sum([z_i * c_i]VK_i) = 0_G
+    /// h_G * -[sum(z_i * s_i)]P_G + sum([z_i]R_i) + sum([z_i * c_i]VK_i) = 0_G
     ///
     /// so that we can use multiscalar multiplication speedups.
     ///
