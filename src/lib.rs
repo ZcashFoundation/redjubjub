@@ -9,9 +9,9 @@ pub mod batch;
 mod constants;
 mod error;
 mod hash;
+mod scalar_mul;
 mod signature;
 mod signing_key;
-mod traits;
 mod verification_key;
 
 /// An element of the JubJub scalar field used for randomization of public and secret keys.
@@ -22,7 +22,6 @@ pub type Randomizer = jubjub::Fr;
 type Scalar = jubjub::Fr;
 
 use hash::HStar;
-use traits::{NonAdjacentForm, VartimeMultiscalarMul};
 
 pub use error::Error;
 pub use signature::Signature;

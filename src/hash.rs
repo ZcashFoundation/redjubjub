@@ -1,6 +1,5 @@
 use crate::Scalar;
 use blake2b_simd::{Params, State};
-//use digest::Update;
 
 /// Provides H^star, the hash-to-scalar function used by RedJubjub.
 pub struct HStar {
