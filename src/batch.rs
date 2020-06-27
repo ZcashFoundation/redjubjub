@@ -8,7 +8,6 @@
 //! and loss of the ability to easily pinpoint failing signatures.
 //!
 
-#![allow(non_snake_case)]
 
 use std::{borrow::Borrow, collections::HashMap, convert::TryFrom, fmt::Debug};
 
@@ -112,6 +111,7 @@ impl<T: Debug> Debug for LookupTable5<T> {
 }
 
 impl<'a> From<&'a ExtendedPoint> for LookupTable5<ExtendedNielsPoint> {
+    #[allow(non_snake_case)]
     fn from(A: &'a ExtendedPoint) -> Self {
         let mut Ai = [A.to_niels(); 8];
         let A2 = A.double();
@@ -126,6 +126,7 @@ impl<'a> From<&'a ExtendedPoint> for LookupTable5<ExtendedNielsPoint> {
 impl VartimeMultiscalarMul for ExtendedPoint {
     type Point = ExtendedPoint;
 
+#[allow(non_snake_case)]
     fn optional_multiscalar_mul<I, J>(scalars: I, points: J) -> Option<ExtendedPoint>
     where
         I: IntoIterator,
