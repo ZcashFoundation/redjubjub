@@ -4,18 +4,20 @@ use rand::thread_rng;
 use redjubjub::*;
 use std::convert::TryFrom;
 
-fn sigs_with_distinct_pubkeys() -> impl Iterator<Item = (VerificationKeyBytes, Signature)> {
+fn sigs_with_distinct_pubkeys<T: SigType>(
+) -> impl Iterator<Item = (VerificationKeyBytes<T>, Signature<T>)> {
     std::iter::repeat_with(|| {
-        let sk = SigningKey::<SpendAuth>::new(thread_rng());
-        let vk_bytes: VerificationKeyBytes = VerificationKey::from(&sk).into();
+        let sk = SigningKey::<T>::new(thread_rng());
+        let vk_bytes = VerificationKey::from(&sk).into();
         let sig = sk.sign(thread_rng(), b"");
         (vk_bytes, sig)
     })
 }
 
-fn sigs_with_same_pubkey() -> impl Iterator<Item = (VerificationKeyBytes, Signature)> {
-    let sk = SigningKey::<SpendAuth>::new(thread_rng());
-    let vk_bytes: VerificationKeyBytes = VerificationKey::from(&sk).into();
+fn sigs_with_same_pubkey<T: SigType>(
+) -> impl Iterator<Item = (VerificationKeyBytes<T>, Signature<T>)> {
+    let sk = SigningKey::<T>::new(thread_rng());
+    let vk_bytes = VerificationKey::from(&sk).into();
     std::iter::repeat_with(move || {
         let sig = sk.sign(thread_rng(), b"");
         (vk_bytes, sig)
@@ -34,7 +36,7 @@ fn bench_batch_verify(c: &mut Criterion) {
                 b.iter(|| {
                     for (vk_bytes, sig) in sigs.iter() {
                         let _ =
-                            VerificationKey::try_from(*vk_bytes).and_then(|vk| vk.verify(sig, b""));
+                            VerificationKey::try_from(*vk_bytes).and_then(|vk| vk.verify(b"", sig));
                     }
                 })
             },
