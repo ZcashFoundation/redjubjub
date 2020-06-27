@@ -8,7 +8,7 @@
 //! and loss of the ability to easily pinpoint failing signatures.
 //!
 
-use std::{collections::HashMap, convert::TryFrom};
+use std::convert::TryFrom;
 
 use jubjub::*;
 use rand_core::{CryptoRng, RngCore};
@@ -56,7 +56,7 @@ impl<'msg, M: AsRef<[u8]>, T: SigType + ?Sized>
 /// A batch verification context.
 pub struct Verifier<T: SigType> {
     /// Signature data queued for verification.
-    signatures: HashMap<VerificationKeyBytes<T>, Vec<(Scalar, Signature<T>)>>,
+    signatures: Vec<(VerificationKeyBytes<T>, Scalar, Signature<T>)>,
     /// Caching this count avoids a hash traversal to figure out
     /// how much to preallocate.
     batch_size: usize,
@@ -65,7 +65,7 @@ pub struct Verifier<T: SigType> {
 impl<T: SigType> Default for Verifier<T> {
     fn default() -> Verifier<T> {
         Verifier {
-            signatures: HashMap::new(),
+            signatures: vec![],
             batch_size: usize::default(),
         }
     }
@@ -81,12 +81,7 @@ impl<T: SigType> Verifier<T> {
     pub fn queue<I: Into<Item<T>>>(&mut self, item: I) {
         let Item { vk_bytes, sig, c } = item.into();
 
-        self.signatures
-            .entry(vk_bytes)
-            // The common case is 1 signature per public key.
-            // We could also consider using a smallvec here.
-            .or_insert_with(|| Vec::with_capacity(1))
-            .push((c, sig));
+        self.signatures.push((vk_bytes, c, sig));
         self.batch_size += 1;
     }
 
@@ -119,7 +114,7 @@ impl<T: SigType> Verifier<T> {
     /// [ps]: https://zips.z.cash/protocol/protocol.pdf#reddsabatchverify
     #[allow(non_snake_case)]
     pub fn verify<R: RngCore + CryptoRng>(self, mut rng: R) -> Result<(), Error> {
-        let n = self.signatures.keys().count();
+        let n = self.signatures.len();
 
         let mut VK_coeffs = Vec::with_capacity(n);
         let mut VKs = Vec::with_capacity(n);
@@ -127,44 +122,42 @@ impl<T: SigType> Verifier<T> {
         let mut Rs = Vec::with_capacity(self.batch_size);
         let mut P_coeff = Scalar::zero();
 
-        for (vk_bytes, sigs) in self.signatures.iter() {
+        for (vk_bytes, c, sig) in self.signatures.iter() {
             let VK = VerificationKey::<T>::try_from(vk_bytes.bytes)
                 .unwrap()
                 .point;
 
             let mut VK_coeff = Scalar::zero();
 
-            for (c, sig) in sigs.iter() {
-                let R = {
-                    // XXX-jubjub: should not use CtOption here
-                    // XXX-jubjub: inconsistent ownership in from_bytes
-                    let maybe_point = AffinePoint::from_bytes(sig.r_bytes);
-                    if maybe_point.is_some().into() {
-                        jubjub::ExtendedPoint::from(maybe_point.unwrap())
-                    } else {
-                        return Err(Error::InvalidSignature);
-                    }
-                };
+            let R = {
+                // XXX-jubjub: should not use CtOption here
+                // XXX-jubjub: inconsistent ownership in from_bytes
+                let maybe_point = AffinePoint::from_bytes(sig.r_bytes);
+                if maybe_point.is_some().into() {
+                    jubjub::ExtendedPoint::from(maybe_point.unwrap())
+                } else {
+                    return Err(Error::InvalidSignature);
+                }
+            };
 
-                let s = {
-                    // XXX-jubjub: should not use CtOption here
-                    let maybe_scalar = Scalar::from_bytes(&sig.s_bytes);
-                    if maybe_scalar.is_some().into() {
-                        maybe_scalar.unwrap()
-                    } else {
-                        return Err(Error::InvalidSignature);
-                    }
-                };
+            let s = {
+                // XXX-jubjub: should not use CtOption here
+                let maybe_scalar = Scalar::from_bytes(&sig.s_bytes);
+                if maybe_scalar.is_some().into() {
+                    maybe_scalar.unwrap()
+                } else {
+                    return Err(Error::InvalidSignature);
+                }
+            };
 
-                let z = Scalar::from_raw(gen_128_bits(&mut rng));
+            let z = Scalar::from_raw(gen_128_bits(&mut rng));
 
-                P_coeff -= z * s;
+            P_coeff -= z * s;
 
-                Rs.push(R);
-                R_coeffs.push(z);
+            Rs.push(R);
+            R_coeffs.push(z);
 
-                VK_coeff += z * c;
-            }
+            VK_coeff += z * c;
 
             VKs.push(VK);
             VK_coeffs.push(VK_coeff);
