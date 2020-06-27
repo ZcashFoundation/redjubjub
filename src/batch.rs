@@ -8,6 +8,8 @@
 //! and loss of the ability to easily pinpoint failing signatures.
 //!
 
+#![allow(non_snake_case)]
+
 use std::{borrow::Borrow, collections::HashMap, convert::TryFrom, fmt::Debug};
 
 use jubjub::*;
@@ -187,7 +189,6 @@ impl<'msg, M: AsRef<[u8]>, T: SigType + ?Sized>
 }
 
 /// A batch verification context.
-#[derive(Default)]
 pub struct Verifier<T: SigType> {
     /// Signature data queued for verification.
     signatures: HashMap<VerificationKeyBytes<T>, Vec<(Scalar, Signature<T>)>>,
@@ -196,13 +197,19 @@ pub struct Verifier<T: SigType> {
     batch_size: usize,
 }
 
-impl<T: SigType> Verifier<T> {
-    /// Construct a new batch verifier.
-    pub fn new() -> Verifier<T> {
+impl<T: SigType> Default for Verifier<T> {
+    fn default() -> Verifier<T> {
         Verifier {
             signatures: HashMap::new(),
             batch_size: usize::default(),
         }
+    }
+}
+
+impl<T: SigType> Verifier<T> {
+    /// Construct a new batch verifier.
+    pub fn new() -> Verifier<T> {
+        Verifier::default()
     }
 
     /// Queue a (key, signature, message) tuple for verification.

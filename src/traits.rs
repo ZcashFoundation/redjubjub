@@ -41,7 +41,7 @@ pub trait VartimeMultiscalarMul {
     {
         Self::optional_multiscalar_mul(
             scalars,
-            points.into_iter().map(|P| Some(P.borrow().clone())),
+            points.into_iter().map(|p| Some(p.borrow().clone())),
         )
         .unwrap()
     }
