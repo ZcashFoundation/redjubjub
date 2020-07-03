@@ -116,11 +116,6 @@ impl<'msg, M: AsRef<[u8]>> From<(VerificationKeyBytes<Binding>, Signature<Bindin
     }
 }
 
-// This would ideally be an associated type with `Verifier` but
-// generic associated types are unstable:
-// https://github.com/rust-lang/rust/issues/44265
-type BatchTuple<T: SigType> = (VerificationKeyBytes<T>, Signature<T>, Scalar);
-
 /// A batch verification context.
 pub struct Verifier {
     /// Signature data queued for verification.
@@ -190,88 +185,65 @@ impl Verifier {
         let mut P_binding_coeff = Scalar::zero();
 
         for item in self.signatures.iter() {
-            match item.inner {
-                Inner::SpendAuth { vk_bytes, sig, c } => {
-                    // let tup: BatchTuple<SpendAuth> = (vk_bytes, sig, c);
+            let (s_bytes, r_bytes) = match item.inner {
+                Inner::SpendAuth { sig, .. } => (sig.s_bytes, sig.r_bytes),
+                Inner::Binding { sig, .. } => (sig.s_bytes, sig.r_bytes),
+            };
 
-                    // let (P_coeff, R, R_coeff, VK, VK_coeff) =
-                    //     &self.compute_multiscalar_mul_inputs(rng, tup)?;
-
-                    let z = Scalar::from_raw(gen_128_bits(&mut rng));
-
-                    let s = {
-                        // XXX-jubjub: should not use CtOption here
-                        let maybe_scalar = Scalar::from_bytes(&sig.s_bytes);
-                        if maybe_scalar.is_some().into() {
-                            maybe_scalar.unwrap()
-                        } else {
-                            return Err(Error::InvalidSignature);
-                        }
-                    };
-
-                    let R = {
-                        // XXX-jubjub: should not use CtOption here
-                        // XXX-jubjub: inconsistent ownership in from_bytes
-                        let maybe_point = AffinePoint::from_bytes(sig.r_bytes);
-                        if maybe_point.is_some().into() {
-                            jubjub::ExtendedPoint::from(maybe_point.unwrap())
-                        } else {
-                            return Err(Error::InvalidSignature);
-                        }
-                    };
-                    let P_coeff = z * s;
-                    let R_coeff = z;
-                    let VK = VerificationKey::<SpendAuth>::try_from(vk_bytes.bytes)
-                        .unwrap()
-                        .point;
-                    let VK_coeff = Scalar::zero() + (z * c);
-
-                    P_spendauth_coeff -= P_coeff;
-                    Rs.push(R);
-                    R_coeffs.push(R_coeff);
-                    VKs.push(VK);
-                    VK_coeffs.push(VK_coeff);
+            let s = {
+                // XXX-jubjub: should not use CtOption here
+                let maybe_scalar = Scalar::from_bytes(&s_bytes);
+                if maybe_scalar.is_some().into() {
+                    maybe_scalar.unwrap()
+                } else {
+                    return Err(Error::InvalidSignature);
                 }
-                Inner::Binding { vk_bytes, sig, c } => {
-                    // let tup: BatchTuple<Binding> = (vk_bytes, sig, c);
+            };
 
-                    // let (P_coeff, R, R_coeff, VK, VK_coeff) =
-                    //     &self.compute_multiscalar_mul_inputs(rng, tup)?;
+            let R = {
+                // XXX-jubjub: should not use CtOption here
+                // XXX-jubjub: inconsistent ownership in from_bytes
+                let maybe_point = AffinePoint::from_bytes(r_bytes);
+                if maybe_point.is_some().into() {
+                    jubjub::ExtendedPoint::from(maybe_point.unwrap())
+                } else {
+                    return Err(Error::InvalidSignature);
+                }
+            };
 
-                    let z = Scalar::from_raw(gen_128_bits(&mut rng));
+            let VK = match item.inner {
+                Inner::SpendAuth { vk_bytes, .. } => {
+                    VerificationKey::<SpendAuth>::try_from(vk_bytes.bytes)?.point
+                }
+                Inner::Binding { vk_bytes, .. } => {
+                    VerificationKey::<Binding>::try_from(vk_bytes.bytes)?.point
+                }
+            };
 
-                    let s = {
-                        // XXX-jubjub: should not use CtOption here
-                        let maybe_scalar = Scalar::from_bytes(&sig.s_bytes);
-                        if maybe_scalar.is_some().into() {
-                            maybe_scalar.unwrap()
-                        } else {
-                            return Err(Error::InvalidSignature);
-                        }
-                    };
+            let z = Scalar::from_raw(gen_128_bits(&mut rng));
 
-                    let R = {
-                        // XXX-jubjub: should not use CtOption here
-                        // XXX-jubjub: inconsistent ownership in from_bytes
-                        let maybe_point = AffinePoint::from_bytes(sig.r_bytes);
-                        if maybe_point.is_some().into() {
-                            jubjub::ExtendedPoint::from(maybe_point.unwrap())
-                        } else {
-                            return Err(Error::InvalidSignature);
-                        }
-                    };
-                    let P_coeff = z * s;
-                    let R_coeff = z;
-                    let VK = VerificationKey::<SpendAuth>::try_from(vk_bytes.bytes)
-                        .unwrap()
-                        .point;
-                    let VK_coeff = Scalar::zero() + (z * c);
+            match item.inner {
+                Inner::SpendAuth { c, .. } => {
+                    VK_coeffs.push(Scalar::zero() + (z * c));
+                }
+                Inner::Binding { c, .. } => {
+                    VK_coeffs.push(Scalar::zero() + (z * c));
+                }
+            };
 
+            VKs.push(VK);
+
+            Rs.push(R);
+            R_coeffs.push(z);
+
+            let P_coeff = z * s;
+
+            match item.inner {
+                Inner::SpendAuth { .. } => {
+                    P_spendauth_coeff -= P_coeff;
+                }
+                Inner::Binding { .. } => {
                     P_binding_coeff -= P_coeff;
-                    Rs.push(R);
-                    R_coeffs.push(R_coeff);
-                    VKs.push(VK);
-                    VK_coeffs.push(VK_coeff);
                 }
             };
         }
