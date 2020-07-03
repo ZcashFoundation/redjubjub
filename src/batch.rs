@@ -37,32 +37,6 @@ enum Inner {
     },
 }
 
-impl
-    From<(
-        VerificationKeyBytes<SpendAuth>,
-        Signature<SpendAuth>,
-        Scalar,
-    )> for Inner
-{
-    fn from(
-        tup: (
-            VerificationKeyBytes<SpendAuth>,
-            Signature<SpendAuth>,
-            Scalar,
-        ),
-    ) -> Self {
-        let (vk_bytes, sig, c) = tup;
-        Inner::SpendAuth { vk_bytes, sig, c }
-    }
-}
-
-impl From<(VerificationKeyBytes<Binding>, Signature<Binding>, Scalar)> for Inner {
-    fn from(tup: (VerificationKeyBytes<Binding>, Signature<Binding>, Scalar)) -> Self {
-        let (vk_bytes, sig, c) = tup;
-        Inner::Binding { vk_bytes, sig, c }
-    }
-}
-
 /// A batch verification item.
 ///
 /// This struct exists to allow batch processing to be decoupled from the
@@ -80,13 +54,12 @@ impl<'msg, M: AsRef<[u8]>>
     )> for Item
 {
     fn from(
-        tup: (
+        (vk_bytes, sig, msg): (
             VerificationKeyBytes<SpendAuth>,
             Signature<SpendAuth>,
             &'msg M,
         ),
     ) -> Self {
-        let (vk_bytes, sig, msg) = tup;
         // Compute c now to avoid dependency on the msg lifetime.
         let c = HStar::default()
             .update(&sig.r_bytes[..])
@@ -102,8 +75,9 @@ impl<'msg, M: AsRef<[u8]>>
 impl<'msg, M: AsRef<[u8]>> From<(VerificationKeyBytes<Binding>, Signature<Binding>, &'msg M)>
     for Item
 {
-    fn from(tup: (VerificationKeyBytes<Binding>, Signature<Binding>, &'msg M)) -> Self {
-        let (vk_bytes, sig, msg) = tup;
+    fn from(
+        (vk_bytes, sig, msg): (VerificationKeyBytes<Binding>, Signature<Binding>, &'msg M),
+    ) -> Self {
         // Compute c now to avoid dependency on the msg lifetime.
         let c = HStar::default()
             .update(&sig.r_bytes[..])
@@ -116,22 +90,11 @@ impl<'msg, M: AsRef<[u8]>> From<(VerificationKeyBytes<Binding>, Signature<Bindin
     }
 }
 
+#[derive(Default)]
 /// A batch verification context.
 pub struct Verifier {
     /// Signature data queued for verification.
     signatures: Vec<Item>,
-    /// Caching this count avoids a hash traversal to figure out
-    /// how much to preallocate.
-    batch_size: usize,
-}
-
-impl Default for Verifier {
-    fn default() -> Verifier {
-        Verifier {
-            signatures: vec![],
-            batch_size: usize::default(),
-        }
-    }
 }
 
 impl Verifier {
@@ -143,7 +106,6 @@ impl Verifier {
     /// Queue an Item for verification.
     pub fn queue<I: Into<Item>>(&mut self, item: I) {
         self.signatures.push(item.into());
-        self.batch_size += 1;
     }
 
     /// Perform batch verification, returning `Ok(())` if all signatures were
@@ -179,15 +141,15 @@ impl Verifier {
 
         let mut VK_coeffs = Vec::with_capacity(n);
         let mut VKs = Vec::with_capacity(n);
-        let mut R_coeffs = Vec::with_capacity(self.batch_size);
-        let mut Rs = Vec::with_capacity(self.batch_size);
+        let mut R_coeffs = Vec::with_capacity(self.signatures.len());
+        let mut Rs = Vec::with_capacity(self.signatures.len());
         let mut P_spendauth_coeff = Scalar::zero();
         let mut P_binding_coeff = Scalar::zero();
 
         for item in self.signatures.iter() {
-            let (s_bytes, r_bytes) = match item.inner {
-                Inner::SpendAuth { sig, .. } => (sig.s_bytes, sig.r_bytes),
-                Inner::Binding { sig, .. } => (sig.s_bytes, sig.r_bytes),
+            let (s_bytes, r_bytes, c) = match item.inner {
+                Inner::SpendAuth { sig, c, .. } => (sig.s_bytes, sig.r_bytes, c),
+                Inner::Binding { sig, c, .. } => (sig.s_bytes, sig.r_bytes, c),
             };
 
             let s = {
@@ -222,22 +184,7 @@ impl Verifier {
 
             let z = Scalar::from_raw(gen_128_bits(&mut rng));
 
-            match item.inner {
-                Inner::SpendAuth { c, .. } => {
-                    VK_coeffs.push(Scalar::zero() + (z * c));
-                }
-                Inner::Binding { c, .. } => {
-                    VK_coeffs.push(Scalar::zero() + (z * c));
-                }
-            };
-
-            VKs.push(VK);
-
-            Rs.push(R);
-            R_coeffs.push(z);
-
             let P_coeff = z * s;
-
             match item.inner {
                 Inner::SpendAuth { .. } => {
                     P_spendauth_coeff -= P_coeff;
@@ -246,6 +193,12 @@ impl Verifier {
                     P_binding_coeff -= P_coeff;
                 }
             };
+
+            R_coeffs.push(z);
+            Rs.push(R);
+
+            VK_coeffs.push(Scalar::zero() + (z * c));
+            VKs.push(VK);
         }
 
         use std::iter::once;
