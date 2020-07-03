@@ -151,6 +151,53 @@ impl Verifier {
         self.batch_size += 1;
     }
 
+    #[allow(non_snake_case)]
+    fn compute_multiscalar_mul_inputs<T: SigType, RNG: RngCore + CryptoRng>(
+        &mut self,
+        mut rng: RNG,
+        (vk_bytes, sig, c): BatchTuple<T>,
+    ) -> Result<
+        (
+            Scalar,
+            jubjub::ExtendedPoint,
+            Scalar,
+            jubjub::ExtendedPoint,
+            Scalar,
+        ),
+        Error,
+    > {
+        let z = Scalar::from_raw(gen_128_bits(&mut rng));
+
+        let s = {
+            // XXX-jubjub: should not use CtOption here
+            let maybe_scalar = Scalar::from_bytes(&sig.s_bytes);
+            if maybe_scalar.is_some().into() {
+                maybe_scalar.unwrap()
+            } else {
+                return Err(Error::InvalidSignature);
+            }
+        };
+
+        let R = {
+            // XXX-jubjub: should not use CtOption here
+            // XXX-jubjub: inconsistent ownership in from_bytes
+            let maybe_point = AffinePoint::from_bytes(sig.r_bytes);
+            if maybe_point.is_some().into() {
+                jubjub::ExtendedPoint::from(maybe_point.unwrap())
+            } else {
+                return Err(Error::InvalidSignature);
+            }
+        };
+        let P_coeff = z * s;
+        let R_coeff = z;
+        let VK = VerificationKey::<T>::try_from(vk_bytes.bytes)
+            .unwrap()
+            .point;
+        let VK_coeff = Scalar::zero() + (z * c);
+
+        return Ok((P_coeff, R, R_coeff, VK, VK_coeff));
+    }
+
     /// Perform batch verification, returning `Ok(())` if all signatures were
     /// valid and `Err` otherwise.
     ///
@@ -192,39 +239,10 @@ impl Verifier {
         for item in self.signatures.iter() {
             match item.inner {
                 Inner::SpendAuth { vk_bytes, sig, c } => {
-                    // let tup: BatchTuple<SpendAuth> = (vk_bytes, sig, c);
+                    let tup: BatchTuple<SpendAuth> = (vk_bytes, sig, c);
 
-                    // let (P_coeff, R, R_coeff, VK, VK_coeff) =
-                    //     &self.compute_multiscalar_mul_inputs(rng, tup)?;
-
-                    let z = Scalar::from_raw(gen_128_bits(&mut rng));
-
-                    let s = {
-                        // XXX-jubjub: should not use CtOption here
-                        let maybe_scalar = Scalar::from_bytes(&sig.s_bytes);
-                        if maybe_scalar.is_some().into() {
-                            maybe_scalar.unwrap()
-                        } else {
-                            return Err(Error::InvalidSignature);
-                        }
-                    };
-
-                    let R = {
-                        // XXX-jubjub: should not use CtOption here
-                        // XXX-jubjub: inconsistent ownership in from_bytes
-                        let maybe_point = AffinePoint::from_bytes(sig.r_bytes);
-                        if maybe_point.is_some().into() {
-                            jubjub::ExtendedPoint::from(maybe_point.unwrap())
-                        } else {
-                            return Err(Error::InvalidSignature);
-                        }
-                    };
-                    let P_coeff = z * s;
-                    let R_coeff = z;
-                    let VK = VerificationKey::<SpendAuth>::try_from(vk_bytes.bytes)
-                        .unwrap()
-                        .point;
-                    let VK_coeff = Scalar::zero() + (z * c);
+                    let (P_coeff, R, R_coeff, VK, VK_coeff) =
+                        &self.compute_multiscalar_mul_inputs(rng, tup)?;
 
                     P_spendauth_coeff -= P_coeff;
                     Rs.push(R);
@@ -233,39 +251,10 @@ impl Verifier {
                     VK_coeffs.push(VK_coeff);
                 }
                 Inner::Binding { vk_bytes, sig, c } => {
-                    // let tup: BatchTuple<Binding> = (vk_bytes, sig, c);
+                    let tup: BatchTuple<Binding> = (vk_bytes, sig, c);
 
-                    // let (P_coeff, R, R_coeff, VK, VK_coeff) =
-                    //     &self.compute_multiscalar_mul_inputs(rng, tup)?;
-
-                    let z = Scalar::from_raw(gen_128_bits(&mut rng));
-
-                    let s = {
-                        // XXX-jubjub: should not use CtOption here
-                        let maybe_scalar = Scalar::from_bytes(&sig.s_bytes);
-                        if maybe_scalar.is_some().into() {
-                            maybe_scalar.unwrap()
-                        } else {
-                            return Err(Error::InvalidSignature);
-                        }
-                    };
-
-                    let R = {
-                        // XXX-jubjub: should not use CtOption here
-                        // XXX-jubjub: inconsistent ownership in from_bytes
-                        let maybe_point = AffinePoint::from_bytes(sig.r_bytes);
-                        if maybe_point.is_some().into() {
-                            jubjub::ExtendedPoint::from(maybe_point.unwrap())
-                        } else {
-                            return Err(Error::InvalidSignature);
-                        }
-                    };
-                    let P_coeff = z * s;
-                    let R_coeff = z;
-                    let VK = VerificationKey::<SpendAuth>::try_from(vk_bytes.bytes)
-                        .unwrap()
-                        .point;
-                    let VK_coeff = Scalar::zero() + (z * c);
+                    let (P_coeff, R, R_coeff, VK, VK_coeff) =
+                        &self.compute_multiscalar_mul_inputs(rng, tup)?;
 
                     P_binding_coeff -= P_coeff;
                     Rs.push(R);
@@ -283,8 +272,10 @@ impl Verifier {
             .chain(VK_coeffs.iter())
             .chain(R_coeffs.iter());
 
-        let basepoints = [SpendAuth::basepoint(), Binding::basepoint()];
-        let points = basepoints.iter().chain(VKs.iter()).chain(Rs.iter());
+        let points = once(SpendAuth::basepoint())
+            .chain(once(Binding::basepoint()))
+            .chain(VKs.iter())
+            .chain(Rs.iter());
 
         let check = ExtendedPoint::vartime_multiscalar_mul(scalars, points);
 
