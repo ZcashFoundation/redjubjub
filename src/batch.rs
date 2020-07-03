@@ -126,8 +126,17 @@ impl Verifier {
     /// - R_i is the signature's R value;
     /// - s_i is the signature's s value;
     /// - c_i is the hash of the message and other data;
-    /// - z_i is a random 128-bit Scalar.
+    /// - z_i is a random 128-bit Scalar;
     /// - h_G is the cofactor of the group;
+    /// - P_G is the generator of the subgroup;
+    ///
+    /// Since RedJubjub uses different subgroups for different types
+    /// of signatures, SpendAuth's and Binding's, we need to have yet
+    /// another point and associated scalar accumulator for all the
+    /// signatures of each type in our batch, but we can still
+    /// amortize computation nicely in one multiscalar multiplication:
+    ///
+    /// h_G * ( [-sum(z_i * s_i): i_type == SpendAuth]P_SpendAuth + [-sum(z_i * s_i): i_type == Binding]P_Binding + sum([z_i]R_i) + sum([z_i * c_i]VK_i) ) = 0_G
     ///
     /// As follows elliptic curve scalar multiplication convention,
     /// scalar variables are lowercase and group point variables
