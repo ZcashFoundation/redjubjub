@@ -16,7 +16,7 @@ fn sigs_with_distinct_keys<T: SigType>(
 
 fn bench_batch_verify(c: &mut Criterion) {
     let mut group = c.benchmark_group("Batch Verification");
-    for n in [8usize, 16, 24, 32, 40, 48, 56, 64].iter() {
+    for &n in [8usize, 16, 24, 32, 40, 48, 56, 64].iter() {
         group.throughput(Throughput::Elements(*n as u64));
 
         let sigs = sigs_with_distinct_keys().take(*n).collect::<Vec<_>>();
