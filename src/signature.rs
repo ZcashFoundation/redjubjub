@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::SigType;
 
-/// A RedJubJub signature.
+/// A RedJubjub signature.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Signature<T: SigType> {

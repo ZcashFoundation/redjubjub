@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// An error related to RedJubJub signatures.
+/// An error related to RedJubjub signatures.
 #[derive(Error, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Error {
     /// The encoding of a signing key was malformed.

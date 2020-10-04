@@ -28,7 +28,7 @@ pub use signature::Signature;
 pub use signing_key::SigningKey;
 pub use verification_key::{VerificationKey, VerificationKeyBytes};
 
-/// Abstracts over different RedJubJub parameter choices, [`Binding`]
+/// Abstracts over different RedJubjub parameter choices, [`Binding`]
 /// and [`SpendAuth`].
 ///
 /// As described [at the end of §5.4.6][concretereddsa] of the Zcash

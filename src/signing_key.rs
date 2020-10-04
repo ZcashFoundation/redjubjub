@@ -7,7 +7,7 @@ use crate::{Error, Randomizer, Scalar, SigType, Signature, SpendAuth, Verificati
 
 use rand_core::{CryptoRng, RngCore};
 
-/// A RedJubJub signing key.
+/// A RedJubjub signing key.
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "SerdeHelper"))]
