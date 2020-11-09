@@ -14,6 +14,8 @@ mod signature;
 mod signing_key;
 mod verification_key;
 
+pub mod frost;
+
 /// An element of the JubJub scalar field used for randomization of public and secret keys.
 pub type Randomizer = jubjub::Fr;
 
