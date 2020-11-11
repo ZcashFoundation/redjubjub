@@ -99,13 +99,15 @@ fn generate_shares<R: RngCore + CryptoRng>(
         rng.fill_bytes(&mut bytes);
         coefficients.push(Scalar::from_bytes_wide(&bytes));
     }
+
     keygen_commitment
         .0
         .push(Commitment(SpendAuth::basepoint() * secret.0));
+
     for c in &coefficients {
         keygen_commitment
             .0
-            .push(Commitment::from(Commitment(SpendAuth::basepoint() * c)));
+            .push(Commitment(SpendAuth::basepoint() * c));
     }
 
     for index in 1..numshares + 1 {
@@ -125,7 +127,7 @@ fn generate_shares<R: RngCore + CryptoRng>(
         });
     }
 
-    return Ok((keygen_commitment, shares));
+    Ok((keygen_commitment, shares))
 }
 
 /// A general FROST keypair that results from distributed key generation (or
@@ -158,7 +160,7 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
         .map(|share| KeyPackage {
             index: share.receiver_index,
             secret_share: share.value,
-            public: Public(SpendAuth::basepoint() * &share.value.0),
+            public: Public(SpendAuth::basepoint() * share.value.0),
             group_public: GroupPublic(group_public),
         })
         .collect();
@@ -166,30 +168,30 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
     Ok((keygen_commitment, keypairs))
 }
 
-// /// Verify that a share is consistent with a commitment.
-// fn verify_share(share: &Share, com: &KeygenCommitment) -> Result<(), &'static str> {
-//     let f_result = &constants::RISTRETTO_BASEPOINT_TABLE * &share.value;
+/// Verify that a share is consistent with a commitment.
+fn verify_share(share: &Share, com: &KeygenCommitment) -> Result<(), &'static str> {
+    let f_result = SpendAuth::basepoint() * share.value.0;
 
-//     let x = Scalar::from(share.receiver_index);
+    let x = Scalar::from(share.receiver_index as u64);
 
-//     let (_, result) = com.commitment.iter().fold(
-//         (Scalar::one(), RistrettoPoint::identity()),
-//         |(x_to_the_i, sum_so_far), comm_i| (x_to_the_i * x, sum_so_far + x_to_the_i * comm_i),
-//     );
+    let (_, result) = com.0.iter().fold(
+        (Scalar::one(), jubjub::ExtendedPoint::identity()),
+        |(x_to_the_i, sum_so_far), comm_i| (x_to_the_i * x, sum_so_far + comm_i.0 * x_to_the_i),
+    );
 
-//     if !(f_result == result) {
-//         return Err("Share is invalid.");
-//     }
+    if !(f_result == result) {
+        return Err("Share is invalid.");
+    }
 
-//     Ok(())
-// }
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use rand::{self, rngs::ThreadRng};
 
-    fn reconstruct_secret(shares: &Vec<Share>) -> Result<Scalar, &'static str> {
+    fn reconstruct_secret(shares: Vec<Share>) -> Result<Scalar, &'static str> {
         let numshares = shares.len();
 
         if numshares < 1 {
@@ -234,12 +236,14 @@ mod tests {
         rng.fill_bytes(&mut bytes);
         let secret = Secret(Scalar::from_bytes_wide(&bytes));
 
-        let group_public = SpendAuth::basepoint() * secret.0;
+        let _ = SpendAuth::basepoint() * secret.0;
 
         let (keygen_commitment, shares) = generate_shares(secret, 5, 3, rng).unwrap();
 
-        // verify_share()
+        for share in shares.iter() {
+            assert_eq!(verify_share(&share, &keygen_commitment), Ok(()));
+        }
 
-        assert_eq!(reconstruct_secret(&shares).unwrap(), secret.0)
+        assert_eq!(reconstruct_secret(shares).unwrap(), secret.0)
     }
 }
