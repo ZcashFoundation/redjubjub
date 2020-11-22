@@ -1,29 +1,17 @@
 //! An implementation of FROST (Flexible Round-Optimized Schnorr Threshold)
 //! signatures.
 //!
-//! > **WARNING**: The implementation in this submodule is unstable and subject to
+//! > **WARNING**: This implementation is unstable and subject to
 //! > revision. It is not covered by the crate's semver guarantees and should not
 //! > be deployed without consultation from the FROST authors!
+//!
+//! This implementation currently only supports key generation using a central
+//! dealer. In the future, we will add support for key generation via a DKG,
+//! as specified in the FROST paper.
+//! Internally, keygen_with_dealer generates keys using Verifiable Secret
+//! Sharing,  where shares are generated using Shamir Secret Sharing.
 
-/// keygen with dealer
-/// - randomly sample coefficents [a, b, c], this represents polynomial f
-/// - for each participant i, their secret share is f(i)
-/// - the commitment to f is [g^a, g^b, g^c]
-///
-/// validate(f(i), commitment)
-/// ... some math
-///
-/// DKG:
-/// Round 1: - each participant performs 'keygen with dealer' as the dealer to everyone else (N-to-N),
-/// sends (commitment, signature) proving they know coefficent 0 to all other participants
-/// Round 2: send shares to all other participants
-/// aggregate shares i received to get my secret and public
-///
-/// group public key: prod g^coefficient 0
-/// share
 // TODO: all public structs/data that includes points must use/wrap
-// jubjub::AffinePoint, because that serialization is the canonical one,
-// vs ExtendedPoint, etc
 use rand_core::{CryptoRng, RngCore};
 
 use crate::private::Sealed;
@@ -65,10 +53,75 @@ struct Commitment(jubjub::ExtendedPoint);
 /// Commits to the coefficients (which are scalars) of the Shamir secret sharing polynomial.
 pub struct KeygenCommitment(Vec<Commitment>);
 
-/// Create secret shares for a given secret. This function accepts a secret to
-/// generate shares from. While in FROST this secret should always be generated
-/// randomly, we allow this secret to be specified for this internal function
-/// for testability
+/// A general FROST keypair that results from distributed key generation (or
+/// from keygen by a central dealer).
+pub struct KeyPackage {
+    pub(crate) index: u32,
+    pub(crate) secret_share: Secret,
+    pub(crate) public: Public,
+    pub(crate) group_public: GroupPublic,
+}
+
+/// keygen with dealer
+/// - randomly sample coefficents [a, b, c], this represents polynomial f
+/// - for each participant i, their secret share is f(i)
+/// - the commitment to f is [g^a, g^b, g^c]
+pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
+    num_signers: u32,
+    threshold: u32,
+    mut rng: R,
+) -> Result<(KeygenCommitment, Vec<KeyPackage>), &'static str> {
+    let mut bytes = [0; 64];
+    rng.fill_bytes(&mut bytes);
+
+    let secret = Secret(Scalar::from_bytes_wide(&bytes));
+    let group_public = SpendAuth::basepoint() * secret.0;
+
+    let (keygen_commitment, shares) = generate_shares(secret, num_signers, threshold, rng)?;
+    let keypairs = shares
+        .iter()
+        .map(|share| KeyPackage {
+            index: share.receiver_index,
+            secret_share: share.value,
+            public: Public(SpendAuth::basepoint() * share.value.0),
+            group_public: GroupPublic(group_public),
+        })
+        .collect();
+
+    Ok((keygen_commitment, keypairs))
+}
+
+/// Verify that a share is consistent with a commitment.
+fn verify_share(share: &Share, com: &KeygenCommitment) -> Result<(), &'static str> {
+    let f_result = SpendAuth::basepoint() * share.value.0;
+
+    let x = Scalar::from(share.receiver_index as u64);
+
+    let (_, result) = com.0.iter().fold(
+        (Scalar::one(), jubjub::ExtendedPoint::identity()),
+        |(x_to_the_i, sum_so_far), comm_i| (x_to_the_i * x, sum_so_far + comm_i.0 * x_to_the_i),
+    );
+
+    if !(f_result == result) {
+        return Err("Share is invalid.");
+    }
+
+    Ok(())
+}
+
+/// generate_shares creates secret shares for a given secret. This function
+/// accepts a secret to generate shares from. While in FROST this secret should
+/// always be generated randomly, we allow this secret to be specified for this
+/// internal function for testability
+///
+/// Internally, generate_shares performs Verifiable Secret Sharing, which
+/// generates shares via Shamir Secret Sharing, and then generates public
+/// commitments to those shares.
+/// More specifically, generate_shares performs:
+/// - Randomly sampling of coefficents [a, b, c], this represents a secret
+/// polynomial f
+/// - For each participant i, their secret share is f(i)
+/// - The commitment to the secret polynomial f is [g^a, g^b, g^c]
 fn generate_shares<R: RngCore + CryptoRng>(
     secret: Secret,
     numshares: u32,
@@ -128,62 +181,6 @@ fn generate_shares<R: RngCore + CryptoRng>(
     }
 
     Ok((keygen_commitment, shares))
-}
-
-/// A general FROST keypair that results from distributed key generation (or
-/// from keygen by a central dealer).
-pub struct KeyPackage {
-    pub(crate) index: u32,
-    pub(crate) secret_share: Secret,
-    pub(crate) public: Public,
-    pub(crate) group_public: GroupPublic,
-}
-
-/// keygen with dealer
-/// - randomly sample coefficents [a, b, c], this represents polynomial f
-/// - for each participant i, their secret share is f(i)
-/// - the commitment to f is [g^a, g^b, g^c]
-pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
-    num_signers: u32,
-    threshold: u32,
-    mut rng: R,
-) -> Result<(KeygenCommitment, Vec<KeyPackage>), &'static str> {
-    let mut bytes = [0; 64];
-    rng.fill_bytes(&mut bytes);
-
-    let secret = Secret(Scalar::from_bytes_wide(&bytes));
-    let group_public = SpendAuth::basepoint() * secret.0;
-
-    let (keygen_commitment, shares) = generate_shares(secret, num_signers, threshold, rng)?;
-    let keypairs = shares
-        .iter()
-        .map(|share| KeyPackage {
-            index: share.receiver_index,
-            secret_share: share.value,
-            public: Public(SpendAuth::basepoint() * share.value.0),
-            group_public: GroupPublic(group_public),
-        })
-        .collect();
-
-    Ok((keygen_commitment, keypairs))
-}
-
-/// Verify that a share is consistent with a commitment.
-fn verify_share(share: &Share, com: &KeygenCommitment) -> Result<(), &'static str> {
-    let f_result = SpendAuth::basepoint() * share.value.0;
-
-    let x = Scalar::from(share.receiver_index as u64);
-
-    let (_, result) = com.0.iter().fold(
-        (Scalar::one(), jubjub::ExtendedPoint::identity()),
-        |(x_to_the_i, sum_so_far), comm_i| (x_to_the_i * x, sum_so_far + comm_i.0 * x_to_the_i),
-    );
-
-    if !(f_result == result) {
-        return Err("Share is invalid.");
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
