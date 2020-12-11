@@ -204,7 +204,7 @@ fn generate_shares<R: RngCore + CryptoRng>(
             value += &coefficients[i as usize];
             value *= scalar_index;
         }
-        value = value + secret.0;
+        value += secret.0;
         shares.push(Share {
             receiver_index: index,
             value: Secret(value),
@@ -214,6 +214,107 @@ fn generate_shares<R: RngCore + CryptoRng>(
 
     Ok(shares)
 }
+
+#[derive(Clone)]
+struct SignatureShare(Scalar);
+
+/// All the nonces needed to generate a randomized signing key
+/// and the rest of the signature. You don't want to use them
+/// more than once.
+struct SigningNonces {
+    randomizer: crate::Randomizer,
+    hiding: Scalar,
+    binding: Scalar,
+}
+
+impl Drop for SigningNonces {
+    fn drop(&mut self) {}
+}
+
+impl SigningNonces {
+    pub fn new<R: RngCore + CryptoRng>(mut rng: R) -> Self {
+        let mut bytes = [0; 64];
+        rng.fill_bytes(&mut bytes);
+        let randomizer = Scalar::from_bytes_wide(&bytes);
+
+        let mut bytes = [0; 64];
+        rng.fill_bytes(&mut bytes);
+        let hiding = Scalar::from_bytes_wide(&bytes);
+
+        let mut bytes = [0; 64];
+        rng.fill_bytes(&mut bytes);
+        let binding = Scalar::from_bytes_wide(&bytes);
+
+        Self {
+            randomizer,
+            hiding,
+            binding,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct SigningCommitments {
+    /// MUST match the receiver_index used during keygen
+    index: u32,
+    randomizer: jubjub::ExtendedPoint,
+    hiding: jubjub::ExtendedPoint,
+    binding: jubjub::ExtendedPoint,
+}
+
+impl From<(u32, SigningNonces)> for SigningCommitments {
+    /// For SpendAuth signatures only, not Binding signatures, in RedJubjub/Zcash.
+    fn from((index, nonces): (u32, SigningNonces)) -> Self {
+        Self {
+            index,
+            randomizer: SpendAuth::basepoint() * nonces.randomizer,
+            hiding: SpendAuth::basepoint() * nonces.hiding,
+            binding: SpendAuth::basepoint() * nonces.binding,
+        }
+    }
+}
+
+/// The group of stuff distributed by the signing coordinator
+/// and distributed to each signing party.
+struct SigningPackage {
+    message: &'static [u8],
+    signing_commitments: Vec<SigningCommitments>,
+}
+
+/// Done once by each participant, to generate _their_ values to contribute to signing.
+/// Depending on how many participants are contributing to the group signature, that determines
+/// n sets of nonces and corresponding commitments. All packages are identified by your index.
+///
+/// Non-interactive; receives number of nonces and commitments
+/// you want to derive, outputs a set of commitments and set of nonces:
+/// the commitments are public, the nonces should stored in secret storage for later use.
+pub fn preprocess<R: RngCore + CryptoRng>(
+    n: u32,
+    my_index: u32,
+    mut rng: R,
+) -> (Vec<SigningNonces>, Vec<SigningCommitments>) {
+    let signing_nonces = vec![];
+    let signing_commitments = vec![];
+
+    for _ in 0..n {
+        let nonces = SigningNonces::new(&rng);
+        signing_commitments.push(SigningCommitments::from((my_index, nonces)));
+        signing_nonces.push(nonces);
+    }
+
+    (signing_nonces, signing_commitments)
+}
+
+/// Performed once by each participant selected for the signing operation.
+/// Receives the message to be signed and a set of signing commitments and
+/// a set of randomizing commitments to be used in that signing operation,
+/// including your own. You have to know which commitments and nonces are yours.
+/// Assumes you've already found the nonce that corresponds with the commitment
+/// that you are using for yourself.
+pub fn sign(signing_package: SigningPackage, my_nonces: SigningNonces) -> Scalar {}
+
+///
+pub fn aggregate() {}
 
 #[cfg(test)]
 mod tests {
