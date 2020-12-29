@@ -306,16 +306,19 @@ pub struct SignatureShare {
 /// Non-interactive; receives number of nonces and commitments
 /// you want to derive, outputs a set of commitments and set of nonces:
 /// the commitments are public, the nonces should stored in secret storage for later use.
-pub fn preprocess<R: RngCore + CryptoRng>(
+pub fn preprocess<R>(
     n: u32,
     my_index: u32,
-    mut rng: R, // TODO this should be a reference
-) -> (Vec<SigningNonces>, Vec<SigningCommitments>) {
+    rng: &mut R,
+) -> (Vec<SigningNonces>, Vec<SigningCommitments>)
+where
+    R: CryptoRng + RngCore,
+{
     let mut signing_nonces: Vec<SigningNonces> = Vec::with_capacity(n as usize);
     let mut signing_commitments: Vec<SigningCommitments> = Vec::with_capacity(n as usize);
 
     for _ in 0..n {
-        let nonces = SigningNonces::new(&mut rng);
+        let nonces = SigningNonces::new(rng);
         signing_commitments.push(SigningCommitments::from((my_index, &nonces)));
         signing_nonces.push(nonces);
     }
@@ -324,10 +327,9 @@ pub fn preprocess<R: RngCore + CryptoRng>(
 }
 
 fn gen_rho_i(index: u32, signing_package: &SigningPackage) -> Scalar {
-    // TODO we need a context string here
     let mut hasher = HStar::default();
     hasher
-        .update("RHO_CONTEXT_STRING".as_bytes())
+        .update("RHO_CONTEXT_STRING".as_bytes()) // TODO decide on context string
         .update(index.to_be_bytes())
         .update(signing_package.message);
 
@@ -350,7 +352,6 @@ fn gen_group_commitment(
 
     for commitment in signing_package.signing_commitments.iter() {
         let rho_i = bindings[&commitment.index];
-
         accumulator += commitment.hiding + (commitment.binding * rho_i)
     }
 
@@ -362,9 +363,8 @@ fn gen_challenge(
     group_commitment: GroupCommitment,
     group_public: GroupPublic,
 ) -> Scalar {
-    // TODO we need a context string here
     let mut hasher = HStar::default();
-    hasher.update("CHALLENGE_CONTEXT_STRING".as_bytes());
+    hasher.update("CHALLENGE_CONTEXT_STRING".as_bytes()); // TODO context string
 
     let group_commitment_bytes = jubjub::AffinePoint::from(group_commitment.0).to_bytes();
     hasher.update(group_commitment_bytes);
@@ -503,5 +503,37 @@ mod tests {
         }
 
         assert_eq!(reconstruct_secret(shares).unwrap(), secret.0)
+    }
+
+    #[test]
+    fn check_sign_with_dealer() {
+        let mut rng: ThreadRng = rand::thread_rng();
+        let numsigners = 5;
+        let threshold = 3;
+        let shares = keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
+
+        let mut nonces: Hashmap<u32, SigningNonces> = Hashmap::with_capacity(threshold);
+        let mut commitments: Hashmap<u32, SigningCommitments> = Hashmap::with_capacity(threshold);
+
+        for participant_index in 1..(threshold + 1) {
+            let (nonce, commitment) = preprocess(1, participant_index, &mut rng);
+            nonces.insert(participant_index, nonce);
+            commitments.insert(participant_index, commitment);
+        }
+
+        let mut signature_shares: Hashmap<u32, SignatureShare> = Hashmap_with_capacity(threshold);
+        let message = "message to sign".as_bytes();
+        let signing_package = SigningPackage {
+            message,
+            signing_commitments: commitments,
+        };
+        for participant_index in 1..(threshold + 1) {
+            let share_package = shares
+                .iter()
+                .find(|share| share.index == participant_index)
+                .unwrap();
+            let signature =
+                sign(&signing_package, nonces[participant_index], share_package).unwrap();
+        }
     }
 }
