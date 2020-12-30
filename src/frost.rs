@@ -15,11 +15,11 @@
 use rand_core::{CryptoRng, RngCore};
 use std::convert::TryFrom;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
 use crate::private::Sealed;
 use crate::HStar;
-use crate::{Scalar, SpendAuth};
+use crate::{Scalar, Signature, SpendAuth};
 
 #[derive(Copy, Clone)]
 /// Secret is comprised of secret scalar.
@@ -222,11 +222,10 @@ fn generate_shares<R: RngCore + CryptoRng>(
     Ok(shares)
 }
 
-#[derive(Clone)]
-
 /// All the nonces needed to generate a randomized signing key
 /// and the rest of the signature. You don't want to use them
 /// more than once.
+#[derive(Clone)]
 pub struct SigningNonces {
     randomizer: crate::Randomizer,
     hiding: Scalar,
@@ -263,7 +262,7 @@ impl SigningNonces {
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 /// SigningCommitments are published before performing signing.
 pub struct SigningCommitments {
     /// MUST match the receiver_index used during keygen
@@ -408,7 +407,7 @@ fn gen_lagrange_coeff(
 /// that you are using for yourself.
 pub fn sign(
     signing_package: &SigningPackage,
-    my_nonces: SigningNonces,
+    my_nonces: &SigningNonces, // TODO this should probably consume the nonce
     share_package: &SharePackage,
 ) -> Result<SignatureShare, &'static str> {
     let mut bindings: HashMap<u32, Scalar> =
@@ -441,8 +440,37 @@ pub fn sign(
     })
 }
 
-///
-pub fn aggregate() {}
+/// Verifies each participant's signature share, and if all are valid,
+/// aggregates the shares into a signature to publish
+pub fn aggregate(
+    signing_package: &SigningPackage,
+    signing_shares: &Vec<SignatureShare>,
+) -> Result<Signature<SpendAuth>, &'static str> {
+    // TODO verify each signature share
+    // TODO re-randomize the public key using the public randomizers
+    let mut bindings: HashMap<u32, Scalar> =
+        HashMap::with_capacity(signing_package.signing_commitments.len());
+
+    for comm in signing_package.signing_commitments.iter() {
+        let rho_i = gen_rho_i(comm.index, &signing_package);
+        bindings.insert(comm.index, rho_i);
+    }
+
+    let group_commitment = gen_group_commitment(&signing_package, &bindings)?;
+
+    let mut z = Scalar::zero();
+    for signature_share in signing_shares {
+        z += signature_share.signature;
+    }
+
+    let r_bytes = jubjub::AffinePoint::from(group_commitment.0).to_bytes();
+
+    Ok(Signature {
+        r_bytes,
+        s_bytes: z.to_bytes(),
+        _marker: PhantomData,
+    })
+}
 
 #[cfg(test)]
 mod tests {
@@ -512,28 +540,32 @@ mod tests {
         let threshold = 3;
         let shares = keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
 
-        let mut nonces: Hashmap<u32, SigningNonces> = Hashmap::with_capacity(threshold);
-        let mut commitments: Hashmap<u32, SigningCommitments> = Hashmap::with_capacity(threshold);
+        let mut nonces: HashMap<u32, Vec<SigningNonces>> =
+            HashMap::with_capacity(threshold as usize);
+        let mut commitments: Vec<SigningCommitments> = Vec::with_capacity(threshold as usize);
 
         for participant_index in 1..(threshold + 1) {
             let (nonce, commitment) = preprocess(1, participant_index, &mut rng);
             nonces.insert(participant_index, nonce);
-            commitments.insert(participant_index, commitment);
+            commitments.push(commitment[0]);
         }
 
-        let mut signature_shares: Hashmap<u32, SignatureShare> = Hashmap_with_capacity(threshold);
+        let mut signature_shares: HashMap<u32, SignatureShare> =
+            HashMap::with_capacity(threshold as usize);
         let message = "message to sign".as_bytes();
         let signing_package = SigningPackage {
             message,
             signing_commitments: commitments,
         };
-        for participant_index in 1..(threshold + 1) {
+        for (participant_index, nonce) in nonces {
             let share_package = shares
                 .iter()
-                .find(|share| share.index == participant_index)
+                .find(|share| participant_index == share.index)
                 .unwrap();
-            let signature =
-                sign(&signing_package, nonces[participant_index], share_package).unwrap();
+            let nonce_to_use = &nonce[0];
+            let signature = sign(&signing_package, &nonce_to_use, share_package).unwrap();
+            // TODO sign should consume the nonce?
         }
+        assert!(1 == 1)
     }
 }
