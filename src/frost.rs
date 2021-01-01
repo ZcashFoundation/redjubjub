@@ -18,8 +18,7 @@ use std::convert::TryFrom;
 use std::{collections::HashMap, marker::PhantomData};
 
 use crate::private::Sealed;
-use crate::HStar;
-use crate::{Scalar, Signature, SpendAuth};
+use crate::{HStar, Scalar, Signature, SpendAuth};
 
 #[derive(Copy, Clone)]
 /// Secret is comprised of secret scalar.
@@ -362,16 +361,14 @@ fn gen_challenge(
     group_commitment: GroupCommitment,
     group_public: GroupPublic,
 ) -> Scalar {
-    let mut hasher = HStar::default();
-    hasher.update("CHALLENGE_CONTEXT_STRING".as_bytes()); // TODO context string
-
     let group_commitment_bytes = jubjub::AffinePoint::from(group_commitment.0).to_bytes();
-    hasher.update(group_commitment_bytes);
     let group_public_bytes = jubjub::AffinePoint::from(group_public.0).to_bytes();
-    hasher.update(group_public_bytes);
 
-    hasher.update(signing_package.message);
-    hasher.finalize()
+    HStar::default()
+        .update(group_commitment_bytes)
+        .update(group_public_bytes)
+        .update(signing_package.message)
+        .finalize()
 }
 
 /// generates the langrange coefficient for the ith participant.
@@ -475,6 +472,7 @@ pub fn aggregate(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::VerificationKey;
     use rand::{self, rngs::ThreadRng};
 
     fn reconstruct_secret(shares: Vec<Share>) -> Result<Scalar, &'static str> {
@@ -550,8 +548,7 @@ mod tests {
             commitments.push(commitment[0]);
         }
 
-        let mut signature_shares: HashMap<u32, SignatureShare> =
-            HashMap::with_capacity(threshold as usize);
+        let mut signature_shares: Vec<SignatureShare> = Vec::with_capacity(threshold as usize);
         let message = "message to sign".as_bytes();
         let signing_package = SigningPackage {
             message,
@@ -563,9 +560,18 @@ mod tests {
                 .find(|share| participant_index == share.index)
                 .unwrap();
             let nonce_to_use = &nonce[0];
-            let signature = sign(&signing_package, &nonce_to_use, share_package).unwrap();
-            // TODO sign should consume the nonce?
+            let signature_share = sign(&signing_package, &nonce_to_use, share_package).unwrap();
+            signature_shares.push(signature_share);
         }
-        assert!(1 == 1)
+
+        let group_signature_res = aggregate(&signing_package, &signature_shares);
+        assert!(group_signature_res.is_ok());
+        let group_signature = group_signature_res.unwrap();
+
+        let group_pk_bytes = jubjub::AffinePoint::from(shares[0].group_public.0).to_bytes();
+        let vk_res = VerificationKey::try_from(group_pk_bytes);
+        assert!(vk_res.is_ok());
+        let vk = vk_res.unwrap();
+        assert!(vk.verify(&message, &group_signature).is_ok());
     }
 }
