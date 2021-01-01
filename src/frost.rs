@@ -358,8 +358,8 @@ fn gen_group_commitment(
 
 fn gen_challenge(
     signing_package: &SigningPackage,
-    group_commitment: GroupCommitment,
-    group_public: GroupPublic,
+    group_commitment: &GroupCommitment,
+    group_public: &GroupPublic,
 ) -> Scalar {
     let group_commitment_bytes = jubjub::AffinePoint::from(group_commitment.0).to_bytes();
     let group_public_bytes = jubjub::AffinePoint::from(group_public.0).to_bytes();
@@ -421,8 +421,8 @@ pub fn sign(
 
     let c = gen_challenge(
         &signing_package,
-        group_commitment,
-        share_package.group_public,
+        &group_commitment,
+        &share_package.group_public,
     );
 
     let my_rho_i = bindings[&share_package.index];
@@ -442,6 +442,7 @@ pub fn sign(
 pub fn aggregate(
     signing_package: &SigningPackage,
     signing_shares: &Vec<SignatureShare>,
+    group_public: &GroupPublic,
 ) -> Result<Signature<SpendAuth>, &'static str> {
     // TODO verify each signature share
     // TODO re-randomize the public key using the public randomizers
@@ -455,9 +456,16 @@ pub fn aggregate(
 
     let group_commitment = gen_group_commitment(&signing_package, &bindings)?;
 
+    let challenge = gen_challenge(&signing_package, &group_commitment, group_public);
+
     let mut z = Scalar::zero();
     for signature_share in signing_shares {
         z += signature_share.signature;
+    }
+
+    // validate ourselves, just to make sure
+    if group_commitment.0 != (SpendAuth::basepoint() * z) - (group_public.0 * challenge) {
+        return Err("Signature is invalid");
     }
 
     let r_bytes = jubjub::AffinePoint::from(group_commitment.0).to_bytes();
@@ -473,7 +481,7 @@ pub fn aggregate(
 mod tests {
     use super::*;
     use crate::VerificationKey;
-    use rand::{self, rngs::ThreadRng};
+    use rand::thread_rng;
 
     fn reconstruct_secret(shares: Vec<Share>) -> Result<Scalar, &'static str> {
         let numshares = shares.len();
@@ -514,7 +522,7 @@ mod tests {
     /// value is working.
     #[test]
     fn check_share_generation() {
-        let mut rng: ThreadRng = rand::thread_rng();
+        let mut rng = thread_rng();
 
         let mut bytes = [0; 64];
         rng.fill_bytes(&mut bytes);
@@ -533,7 +541,7 @@ mod tests {
 
     #[test]
     fn check_sign_with_dealer() {
-        let mut rng: ThreadRng = rand::thread_rng();
+        let mut rng = thread_rng();
         let numsigners = 5;
         let threshold = 3;
         let shares = keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
@@ -564,7 +572,8 @@ mod tests {
             signature_shares.push(signature_share);
         }
 
-        let group_signature_res = aggregate(&signing_package, &signature_shares);
+        let group_signature_res =
+            aggregate(&signing_package, &signature_shares, &shares[0].group_public);
         assert!(group_signature_res.is_ok());
         let group_signature = group_signature_res.unwrap();
 
