@@ -27,13 +27,14 @@ pub struct Secret(Scalar);
 // TODO: impl From<Scalar> for Secret;
 
 #[derive(Copy, Clone)]
-/// Public is comprised of a public group element
+/// Public is comprised of a public group element and represents a single
+/// signer's public key
 pub struct Public(jubjub::ExtendedPoint);
 
 // TODO: impl From<jubjub::ExtendedPoint> for Public;
 
 #[derive(Copy, Clone)]
-/// GroupPublic represents the signing group's public key.
+/// GroupPublic represents the signing group's joint public key.
 pub struct GroupPublic(jubjub::ExtendedPoint);
 
 // TODO: impl From<jubjub::ExtendedPoint> for GroupPublic;
@@ -97,6 +98,14 @@ pub struct KeyPackage {
     pub(crate) group_public: GroupPublic,
 }
 
+/// Public data that contains all the singer's public keys as well as the
+/// group public key. Used for verification purposes before publishing a
+/// signature.
+pub struct PublicKeyPackage {
+    pub(crate) signer_pubkeys: HashMap<u32, Public>,
+    pub(crate) group_public: GroupPublic,
+}
+
 /// keygen with dealer allows all participants' keys to be generated using a
 /// central, trusted dealer. This action is essentially Verifiable Secret
 /// Sharing, which itself uses Shamir secret sharing, from which each share
@@ -107,25 +116,36 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
     num_signers: u32,
     threshold: u32,
     mut rng: R,
-) -> Result<Vec<SharePackage>, &'static str> {
+) -> Result<(Vec<SharePackage>, PublicKeyPackage), &'static str> {
     let mut bytes = [0; 64];
     rng.fill_bytes(&mut bytes);
 
     let secret = Secret(Scalar::from_bytes_wide(&bytes));
-    let group_public = SpendAuth::basepoint() * secret.0;
+    let group_public = GroupPublic(SpendAuth::basepoint() * secret.0);
 
     let shares = generate_shares(secret, num_signers, threshold, rng)?;
     let mut sharepackages: Vec<SharePackage> = Vec::with_capacity(num_signers as usize);
+    let mut signer_pubkeys: HashMap<u32, Public> = HashMap::with_capacity(num_signers as usize);
+
     for share in shares {
+        let signer_public = Public(SpendAuth::basepoint() * share.value.0);
         sharepackages.push(SharePackage {
             index: share.receiver_index,
             share: share.clone(),
-            public: Public(SpendAuth::basepoint() * share.value.0),
-            group_public: GroupPublic(group_public),
+            public: signer_public,
+            group_public: group_public,
         });
+
+        signer_pubkeys.insert(share.receiver_index, signer_public);
     }
 
-    Ok(sharepackages)
+    Ok((
+        sharepackages,
+        PublicKeyPackage {
+            signer_pubkeys,
+            group_public,
+        },
+    ))
 }
 
 /// verify_shares verifies that a share is consistent with a commitment,
@@ -296,6 +316,20 @@ pub struct SignatureShare {
     pub(crate) index: u32,
     pub(crate) signature: Scalar,
 }
+impl SignatureShare {
+    /// is_valid tests if a signature share issued by a participant is valid
+    /// before aggregating it into a final joint signature to publish
+    pub fn is_valid(
+        &self,
+        pubkey: &Public,
+        lambda_i: Scalar,
+        commitment: jubjub::ExtendedPoint,
+        challenge: Scalar,
+    ) -> bool {
+        (SpendAuth::basepoint() * &self.signature)
+            == (commitment + (pubkey.0 * (challenge * lambda_i)))
+    }
+}
 
 /// Done once by each participant, to generate _their_ values to contribute to signing.
 /// Depending on how many participants are contributing to the group signature, that determines
@@ -346,7 +380,7 @@ fn gen_group_commitment(
     signing_package: &SigningPackage,
     bindings: &HashMap<u32, Scalar>,
 ) -> Result<GroupCommitment, &'static str> {
-    let mut accumulator = SpendAuth::basepoint();
+    let mut accumulator = jubjub::ExtendedPoint::identity();
 
     for commitment in signing_package.signing_commitments.iter() {
         let rho_i = bindings[&commitment.index];
@@ -442,10 +476,8 @@ pub fn sign(
 pub fn aggregate(
     signing_package: &SigningPackage,
     signing_shares: &Vec<SignatureShare>,
-    group_public: &GroupPublic,
+    pubkeys: &PublicKeyPackage,
 ) -> Result<Signature<SpendAuth>, &'static str> {
-    // TODO verify each signature share
-    // TODO re-randomize the public key using the public randomizers
     let mut bindings: HashMap<u32, Scalar> =
         HashMap::with_capacity(signing_package.signing_commitments.len());
 
@@ -456,7 +488,25 @@ pub fn aggregate(
 
     let group_commitment = gen_group_commitment(&signing_package, &bindings)?;
 
-    let challenge = gen_challenge(&signing_package, &group_commitment, group_public);
+    let challenge = gen_challenge(&signing_package, &group_commitment, &pubkeys.group_public);
+
+    for signing_share in signing_shares {
+        let signer_pubkey = pubkeys.signer_pubkeys[&signing_share.index];
+        let lambda_i = gen_lagrange_coeff(signing_share.index, &signing_package)?;
+        let signer_commitment = signing_package
+            .signing_commitments
+            .iter()
+            .find(|comm| comm.index == signing_share.index)
+            .ok_or("No signing commitment for signer")?;
+
+        let commitment_i =
+            signer_commitment.hiding + (signer_commitment.binding * bindings[&signing_share.index]);
+
+        if !signing_share.is_valid(&signer_pubkey, lambda_i, commitment_i, challenge) {
+            panic!("invalid signer resp");
+            return Err("Invalid signer response");
+        }
+    }
 
     let mut z = Scalar::zero();
     for signature_share in signing_shares {
@@ -464,7 +514,7 @@ pub fn aggregate(
     }
 
     // validate ourselves, just to make sure
-    if group_commitment.0 != (SpendAuth::basepoint() * z) - (group_public.0 * challenge) {
+    if group_commitment.0 != ((SpendAuth::basepoint() * z) - (pubkeys.group_public.0 * challenge)) {
         return Err("Signature is invalid");
     }
 
@@ -544,7 +594,7 @@ mod tests {
         let mut rng = thread_rng();
         let numsigners = 5;
         let threshold = 3;
-        let shares = keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
+        let (shares, pubkeys) = keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
 
         let mut nonces: HashMap<u32, Vec<SigningNonces>> =
             HashMap::with_capacity(threshold as usize);
@@ -572,8 +622,7 @@ mod tests {
             signature_shares.push(signature_share);
         }
 
-        let group_signature_res =
-            aggregate(&signing_package, &signature_shares, &shares[0].group_public);
+        let group_signature_res = aggregate(&signing_package, &signature_shares, &pubkeys);
         assert!(group_signature_res.is_ok());
         let group_signature = group_signature_res.unwrap();
 
