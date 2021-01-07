@@ -36,11 +36,13 @@ fn check_sign_with_dealer() {
         signature_shares.push(signature_share);
     }
 
-    let group_signature_res = aggregate(&signing_package, &signature_shares, &pubkeys);
+    let randomized_pubkeys = pubkeys.randomize(&signing_package).unwrap();
+
+    let group_signature_res = aggregate(&signing_package, &signature_shares, &randomized_pubkeys);
     assert!(group_signature_res.is_ok());
     let group_signature = group_signature_res.unwrap();
 
-    assert!(pubkeys
+    assert!(randomized_pubkeys
         .group_public
         .verify(&message, &group_signature)
         .is_ok());
