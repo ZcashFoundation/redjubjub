@@ -123,10 +123,12 @@ impl PublicKeyPackage {
                 None => continue, // not all possible signers participate in signing
             };
 
-            randomized_signer_pubkeys.insert(
-                *signer_index,
-                Public(signer_pubkey.0 + matching_comm.randomizer),
-            );
+            let randomized = signer_pubkey.0 + matching_comm.randomizer;
+            if randomized == signer_pubkey.0 {
+                return Err("randomizing public key not successful");
+            }
+
+            randomized_signer_pubkeys.insert(*signer_index, Public(randomized));
         }
 
         self.signer_pubkeys = randomized_signer_pubkeys;
@@ -619,5 +621,34 @@ mod tests {
         }
 
         assert_eq!(reconstruct_secret(shares).unwrap(), secret.0)
+    }
+
+    #[test]
+    fn check_rerandomize_public_keys() {
+        let mut rng = thread_rng();
+        let numsigners = 5;
+        let threshold = 3;
+        let (shares, orig_pubkeys) = keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
+
+        let mut nonces: HashMap<u32, Vec<SigningNonces>> =
+            HashMap::with_capacity(threshold as usize);
+        let mut commitments: Vec<SigningCommitments> = Vec::with_capacity(threshold as usize);
+
+        for participant_index in 1..(numsigners + 1) {
+            let (nonce, commitment) = preprocess(1, participant_index, &mut rng);
+            nonces.insert(participant_index, nonce);
+            commitments.push(commitment[0]);
+        }
+
+        let mut signature_shares: Vec<SignatureShare> = Vec::with_capacity(threshold as usize);
+        let message = "message to sign".as_bytes();
+        let signing_package = SigningPackage {
+            message,
+            signing_commitments: commitments,
+        };
+
+        let original_public = orig_pubkeys.group_public;
+        let randomized_pubkeys = orig_pubkeys.randomize(&signing_package).unwrap();
+        assert!(randomized_pubkeys.group_public.point != original_public.point);
     }
 }
