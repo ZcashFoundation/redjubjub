@@ -102,6 +102,39 @@ pub struct PublicKeyPackage {
     pub group_public: VerificationKey<SpendAuth>,
 }
 
+impl PublicKeyPackage {
+    /// randomize applies a public random value to verification keys
+    pub fn randomize(mut self, signing_package: &SigningPackage) -> Result<Self, &'static str> {
+        for commitment in &signing_package.signing_commitments {
+            let lambda_i = gen_lagrange_coeff(commitment.index, &signing_package)?;
+            self.group_public.point += commitment.randomizer * lambda_i;
+        }
+
+        let mut randomized_signer_pubkeys: HashMap<u32, Public> =
+            HashMap::with_capacity(self.signer_pubkeys.len());
+
+        for (signer_index, signer_pubkey) in self.signer_pubkeys.iter() {
+            let matching_comm = match signing_package
+                .signing_commitments
+                .iter()
+                .find(|comm| comm.index == *signer_index)
+            {
+                Some(x) => x,
+                None => continue, // not all possible signers participate in signing
+            };
+
+            randomized_signer_pubkeys.insert(
+                *signer_index,
+                Public(signer_pubkey.0 + matching_comm.randomizer),
+            );
+        }
+
+        self.signer_pubkeys = randomized_signer_pubkeys;
+
+        Ok(self)
+    }
+}
+
 /// keygen with dealer allows all participants' keys to be generated using a
 /// central, trusted dealer. This action is essentially Verifiable Secret
 /// Sharing, which itself uses Shamir secret sharing, from which each share
@@ -331,6 +364,7 @@ impl SignatureShare {
         if (SpendAuth::basepoint() * &self.signature)
             != (commitment + pubkey.0 * challenge * lambda_i)
         {
+            panic!("individual_share is not valid");
             return Err("Invalid signature share");
         }
         Ok(())
@@ -441,6 +475,7 @@ fn gen_lagrange_coeff(
 /// including your own.
 /// Assumes you've already found the nonce that corresponds with the commitment
 /// that you are using for yourself.
+/// TODO have a flag that performes randomization optionally
 pub fn sign(
     signing_package: &SigningPackage,
     my_nonces: &SigningNonces, // TODO this should probably consume the nonce
@@ -468,7 +503,8 @@ pub fn sign(
 
     let signature: Scalar = my_nonces.hiding
         + (my_nonces.binding * my_rho_i)
-        + (lambda_i * share_package.share.value.0 * c);
+        + (lambda_i * share_package.share.value.0 * c)
+        + my_nonces.randomizer * c * lambda_i;
 
     Ok(SignatureShare {
         index: share_package.index,
