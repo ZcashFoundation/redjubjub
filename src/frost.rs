@@ -11,7 +11,6 @@
 //! Internally, keygen_with_dealer generates keys using Verifiable Secret
 //! Sharing,  where shares are generated using Shamir Secret Sharing.
 
-// TODO: all public structs/data that includes points must use/wrap
 use rand_core::{CryptoRng, RngCore};
 use std::convert::TryFrom;
 
@@ -86,11 +85,14 @@ impl TryFrom<SharePackage> for KeyPackage {
 
 /// KeyPackage is a FROST keypair. This keypair can be generated either by a
 /// trusted dealer or using a DKG.
+/// When using a central dealer, KeyPackages are distributed to participants
+/// during, who then perform verification before deriving SharePackates, which
+/// they store to later use during signing.
 pub struct KeyPackage {
-    pub(crate) index: u32,
-    pub(crate) secret_share: Secret,
-    pub(crate) public: Public,
-    pub(crate) group_public: VerificationKey<SpendAuth>,
+    index: u32,
+    secret_share: Secret,
+    public: Public,
+    group_public: VerificationKey<SpendAuth>,
 }
 
 /// Public data that contains all the singer's public keys as well as the
@@ -103,7 +105,8 @@ pub struct PublicKeyPackage {
 }
 
 impl PublicKeyPackage {
-    /// randomize applies a public random value to verification keys
+    /// randomize applies a set of public values during a signing operation to
+    /// randomize the verification key for that signature
     pub fn randomize(mut self, signing_package: &SigningPackage) -> Result<Self, &'static str> {
         for commitment in &signing_package.signing_commitments {
             let lambda_i = gen_lagrange_coeff(commitment.index, &signing_package)?;
@@ -345,6 +348,8 @@ pub struct SigningPackage {
     pub message: &'static [u8],
     /// signing_commitments are the set of commitments participants published in the first round.
     pub signing_commitments: Vec<SigningCommitments>,
+    /// randomized indicates to signers whether to randomize the public key
+    pub randomized: bool,
 }
 
 /// A participant's signature share, which later will be aggregated into the
@@ -366,7 +371,6 @@ impl SignatureShare {
         if (SpendAuth::basepoint() * &self.signature)
             != (commitment + pubkey.0 * challenge * lambda_i)
         {
-            panic!("individual_share is not valid");
             return Err("Invalid signature share");
         }
         Ok(())
@@ -477,7 +481,6 @@ fn gen_lagrange_coeff(
 /// including your own.
 /// Assumes you've already found the nonce that corresponds with the commitment
 /// that you are using for yourself.
-/// TODO have a flag that performes randomization optionally
 pub fn sign(
     signing_package: &SigningPackage,
     my_nonces: &SigningNonces, // TODO this should probably consume the nonce
@@ -503,10 +506,15 @@ pub fn sign(
 
     let my_rho_i = bindings[&share_package.index];
 
-    let signature: Scalar = my_nonces.hiding
+    let mut signature: Scalar = my_nonces.hiding
         + (my_nonces.binding * my_rho_i)
-        + (lambda_i * share_package.share.value.0 * c)
-        + my_nonces.randomizer * c * lambda_i;
+        + (lambda_i * share_package.share.value.0 * c);
+
+    // add the randomizer value so that this signature verifies under the
+    // corresponding randomized verification key
+    if signing_package.randomized {
+        signature += my_nonces.randomizer * c * lambda_i;
+    }
 
     Ok(SignatureShare {
         index: share_package.index,
@@ -516,6 +524,8 @@ pub fn sign(
 
 /// Verifies each participant's signature share, and if all are valid,
 /// aggregates the shares into a signature to publish
+/// Performed by some coordinator that can communicate with all the signing
+/// participants before publishing the final signature.
 pub fn aggregate(
     signing_package: &SigningPackage,
     signing_shares: &Vec<SignatureShare>,
@@ -553,10 +563,8 @@ pub fn aggregate(
         z += signature_share.signature;
     }
 
-    let r_bytes = jubjub::AffinePoint::from(group_commitment.0).to_bytes();
-
     Ok(Signature {
-        r_bytes,
+        r_bytes: jubjub::AffinePoint::from(group_commitment.0).to_bytes(),
         s_bytes: z.to_bytes(),
         _marker: PhantomData,
     })
@@ -645,6 +653,7 @@ mod tests {
         let signing_package = SigningPackage {
             message,
             signing_commitments: commitments,
+            randomized: true,
         };
 
         let original_public = orig_pubkeys.group_public;
