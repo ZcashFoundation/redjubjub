@@ -104,42 +104,6 @@ pub struct PublicKeyPackage {
     pub group_public: VerificationKey<SpendAuth>,
 }
 
-impl PublicKeyPackage {
-    /// randomize applies a set of public values during a signing operation to
-    /// randomize the verification key for that signature
-    pub fn randomize(mut self, signing_package: &SigningPackage) -> Result<Self, &'static str> {
-        for commitment in &signing_package.signing_commitments {
-            let lambda_i = gen_lagrange_coeff(commitment.index, &signing_package)?;
-            self.group_public.point += commitment.randomizer * lambda_i;
-        }
-
-        let mut randomized_signer_pubkeys: HashMap<u32, Public> =
-            HashMap::with_capacity(self.signer_pubkeys.len());
-
-        for (signer_index, signer_pubkey) in self.signer_pubkeys.iter() {
-            let matching_comm = match signing_package
-                .signing_commitments
-                .iter()
-                .find(|comm| comm.index == *signer_index)
-            {
-                Some(x) => x,
-                None => continue, // not all possible signers participate in signing
-            };
-
-            let randomized = signer_pubkey.0 + matching_comm.randomizer;
-            if randomized == signer_pubkey.0 {
-                return Err("randomizing public key not successful");
-            }
-
-            randomized_signer_pubkeys.insert(*signer_index, Public(randomized));
-        }
-
-        self.signer_pubkeys = randomized_signer_pubkeys;
-
-        Ok(self)
-    }
-}
-
 /// keygen with dealer allows all participants' keys to be generated using a
 /// central, trusted dealer. This action is essentially Verifiable Secret
 /// Sharing, which itself uses Shamir secret sharing, from which each share
@@ -279,12 +243,9 @@ fn generate_shares<R: RngCore + CryptoRng>(
     Ok(shares)
 }
 
-/// All the nonces needed to generate a randomized signing key
-/// and the rest of the signature. You don't want to use them
-/// more than once.
+/// SigningNonces are comprised of hiding and binding nonces.
 #[derive(Clone)]
 pub struct SigningNonces {
-    randomizer: crate::Randomizer,
     hiding: Scalar,
     binding: Scalar,
 }
@@ -301,21 +262,13 @@ impl SigningNonces {
     {
         let mut bytes = [0; 64];
         rng.fill_bytes(&mut bytes);
-        let randomizer = Scalar::from_bytes_wide(&bytes);
-
-        let mut bytes = [0; 64];
-        rng.fill_bytes(&mut bytes);
         let hiding = Scalar::from_bytes_wide(&bytes);
 
         let mut bytes = [0; 64];
         rng.fill_bytes(&mut bytes);
         let binding = Scalar::from_bytes_wide(&bytes);
 
-        Self {
-            randomizer,
-            hiding,
-            binding,
-        }
+        Self { hiding, binding }
     }
 }
 
@@ -324,7 +277,6 @@ impl SigningNonces {
 pub struct SigningCommitments {
     /// MUST match the receiver_index used during keygen
     index: u32,
-    randomizer: jubjub::ExtendedPoint,
     hiding: jubjub::ExtendedPoint,
     binding: jubjub::ExtendedPoint,
 }
@@ -334,7 +286,6 @@ impl From<(u32, &SigningNonces)> for SigningCommitments {
     fn from((index, nonces): (u32, &SigningNonces)) -> Self {
         Self {
             index,
-            randomizer: SpendAuth::basepoint() * nonces.randomizer,
             hiding: SpendAuth::basepoint() * nonces.hiding,
             binding: SpendAuth::basepoint() * nonces.binding,
         }
@@ -348,8 +299,6 @@ pub struct SigningPackage {
     pub message: &'static [u8],
     /// signing_commitments are the set of commitments participants published in the first round.
     pub signing_commitments: Vec<SigningCommitments>,
-    /// randomized indicates to signers whether to randomize the public key
-    pub randomized: bool,
 }
 
 /// A participant's signature share, which later will be aggregated into the
@@ -506,15 +455,9 @@ pub fn sign(
 
     let my_rho_i = bindings[&share_package.index];
 
-    let mut signature: Scalar = my_nonces.hiding
+    let signature: Scalar = my_nonces.hiding
         + (my_nonces.binding * my_rho_i)
         + (lambda_i * share_package.share.value.0 * c);
-
-    // add the randomizer value so that this signature verifies under the
-    // corresponding randomized verification key
-    if signing_package.randomized {
-        signature += my_nonces.randomizer * c * lambda_i;
-    }
 
     Ok(SignatureShare {
         index: share_package.index,
@@ -629,35 +572,5 @@ mod tests {
         }
 
         assert_eq!(reconstruct_secret(shares).unwrap(), secret.0)
-    }
-
-    #[test]
-    fn check_rerandomize_public_keys() {
-        let mut rng = thread_rng();
-        let numsigners = 5;
-        let threshold = 3;
-        let (shares, orig_pubkeys) = keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
-
-        let mut nonces: HashMap<u32, Vec<SigningNonces>> =
-            HashMap::with_capacity(threshold as usize);
-        let mut commitments: Vec<SigningCommitments> = Vec::with_capacity(threshold as usize);
-
-        for participant_index in 1..(numsigners + 1) {
-            let (nonce, commitment) = preprocess(1, participant_index, &mut rng);
-            nonces.insert(participant_index, nonce);
-            commitments.push(commitment[0]);
-        }
-
-        let mut signature_shares: Vec<SignatureShare> = Vec::with_capacity(threshold as usize);
-        let message = "message to sign".as_bytes();
-        let signing_package = SigningPackage {
-            message,
-            signing_commitments: commitments,
-            randomized: true,
-        };
-
-        let original_public = orig_pubkeys.group_public;
-        let randomized_pubkeys = orig_pubkeys.randomize(&signing_package).unwrap();
-        assert!(randomized_pubkeys.group_public.point != original_public.point);
     }
 }
