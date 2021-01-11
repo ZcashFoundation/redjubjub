@@ -250,12 +250,14 @@ pub struct SigningNonces {
     binding: Scalar,
 }
 
+// TODO finish drop
 impl Drop for SigningNonces {
     fn drop(&mut self) {}
 }
 
 impl SigningNonces {
-    /// generates a new signing nonce
+    /// generates a new signing nonce; each participant generates signing
+    /// nonces before performing a signing operation.
     pub fn new<R>(rng: &mut R) -> Self
     where
         R: CryptoRng + RngCore,
@@ -273,9 +275,10 @@ impl SigningNonces {
 }
 
 #[derive(Copy, Clone)]
-/// SigningCommitments are published before performing signing.
+/// SigningCommitments are published by each participant in the first round of
+/// the signing protocol. THis step can be batched if desired by the
+/// implementation.
 pub struct SigningCommitments {
-    /// MUST match the receiver_index used during keygen
     index: u32,
     hiding: jubjub::ExtendedPoint,
     binding: jubjub::ExtendedPoint,
@@ -378,7 +381,9 @@ fn gen_group_commitment(
     let mut accumulator = jubjub::ExtendedPoint::identity();
 
     for commitment in signing_package.signing_commitments.iter() {
-        let rho_i = bindings[&commitment.index];
+        let rho_i = bindings
+            .get(&commitment.index)
+            .ok_or("No matching commitment index")?;
         accumulator += commitment.hiding + (commitment.binding * rho_i)
     }
 
@@ -447,17 +452,19 @@ pub fn sign(
 
     let group_commitment = gen_group_commitment(&signing_package, &bindings)?;
 
-    let c = gen_challenge(
+    let challenge = gen_challenge(
         &signing_package,
         &group_commitment,
         &share_package.group_public,
     );
 
-    let my_rho_i = bindings[&share_package.index];
+    let my_rho_i = bindings
+        .get(&share_package.index)
+        .ok_or("No matching binding!")?;
 
     let signature: Scalar = my_nonces.hiding
         + (my_nonces.binding * my_rho_i)
-        + (lambda_i * share_package.share.value.0 * c);
+        + (lambda_i * share_package.share.value.0 * challenge);
 
     Ok(SignatureShare {
         index: share_package.index,
