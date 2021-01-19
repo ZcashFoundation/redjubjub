@@ -136,11 +136,11 @@ impl Verifier {
     ///
     /// The batch verification equation is:
     ///
-    /// h_G * -[sum(z_i * s_i)]P_G + sum([z_i]R_i + [z_i * c_i]VK_i) = 0_G
+    /// h_G * -[sum(z_i * s_i)]P_G + sum(\[z_i\]R_i + [z_i * c_i]VK_i) = 0_G
     ///
     /// which we split out into:
     ///
-    /// h_G * -[sum(z_i * s_i)]P_G + sum([z_i]R_i) + sum([z_i * c_i]VK_i) = 0_G
+    /// h_G * -[sum(z_i * s_i)]P_G + sum(\[z_i\]R_i) + sum([z_i * c_i]VK_i) = 0_G
     ///
     /// so that we can use multiscalar multiplication speedups.
     ///
@@ -159,7 +159,7 @@ impl Verifier {
     /// signatures of each type in our batch, but we can still
     /// amortize computation nicely in one multiscalar multiplication:
     ///
-    /// h_G * ( [-sum(z_i * s_i): i_type == SpendAuth]P_SpendAuth + [-sum(z_i * s_i): i_type == Binding]P_Binding + sum([z_i]R_i) + sum([z_i * c_i]VK_i) ) = 0_G
+    /// h_G * ( [-sum(z_i * s_i): i_type == SpendAuth]P_SpendAuth + [-sum(z_i * s_i): i_type == Binding]P_Binding + sum(\[z_i\]R_i) + sum([z_i * c_i]VK_i) ) = 0_G
     ///
     /// As follows elliptic curve scalar multiplication convention,
     /// scalar variables are lowercase and group point variables

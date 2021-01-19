@@ -276,7 +276,7 @@ impl SigningNonces {
 
 #[derive(Copy, Clone)]
 /// SigningCommitments are published by each participant in the first round of
-/// the signing protocol. THis step can be batched if desired by the
+/// the signing protocol. This step can be batched if desired by the
 /// implementation.
 pub struct SigningCommitments {
     index: u32,
