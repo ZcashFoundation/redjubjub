@@ -359,7 +359,7 @@ where
 fn gen_rho_i(index: u32, signing_package: &SigningPackage) -> Scalar {
     let mut hasher = HStar::default();
     hasher
-        .update("RHO_CONTEXT_STRING".as_bytes()) // TODO decide on context string
+        .update("FROST_rho".as_bytes())
         .update(index.to_be_bytes())
         .update(signing_package.message);
 
