@@ -337,17 +337,17 @@ impl SignatureShare {
 /// you want to derive, outputs a set of commitments and set of nonces:
 /// the commitments are public, the nonces should stored in secret storage for later use.
 pub fn preprocess<R>(
-    n: u32,
+    num_nonces: u32,
     my_index: u32,
     rng: &mut R,
 ) -> (Vec<SigningNonces>, Vec<SigningCommitments>)
 where
     R: CryptoRng + RngCore,
 {
-    let mut signing_nonces: Vec<SigningNonces> = Vec::with_capacity(n as usize);
-    let mut signing_commitments: Vec<SigningCommitments> = Vec::with_capacity(n as usize);
+    let mut signing_nonces: Vec<SigningNonces> = Vec::with_capacity(num_nonces as usize);
+    let mut signing_commitments: Vec<SigningCommitments> = Vec::with_capacity(num_nonces as usize);
 
-    for _ in 0..n {
+    for _ in 0..num_nonces {
         let nonces = SigningNonces::new(rng);
         signing_commitments.push(SigningCommitments::from((my_index, &nonces)));
         signing_nonces.push(nonces);
