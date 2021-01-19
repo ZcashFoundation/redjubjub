@@ -25,7 +25,6 @@ type Scalar = jubjub::Fr;
 use hash::HStar;
 
 pub use error::Error;
-pub use frost::*;
 pub use signature::Signature;
 pub use signing_key::SigningKey;
 pub use verification_key::{VerificationKey, VerificationKeyBytes};
