@@ -57,4 +57,6 @@ fn check_sign_with_dealer() {
         .group_public
         .verify(&message, &group_signature)
         .is_ok());
+
+    // TODO: also check that the SharePackage.group_public also verifies the group signature.
 }

@@ -193,9 +193,11 @@ fn generate_shares<R: RngCore + CryptoRng>(
     if threshold < 1 {
         return Err("Threshold cannot be 0");
     }
+
     if numshares < 1 {
         return Err("Number of shares cannot be 0");
     }
+
     if threshold > numshares {
         return Err("Threshold cannot exceed numshares");
     }
@@ -214,6 +216,8 @@ fn generate_shares<R: RngCore + CryptoRng>(
         coefficients.push(Scalar::from_bytes_wide(&bytes));
     }
 
+    // Verifiable secret sharing, to make sure that participants can ensure their secret is consistent
+    // with every other participant's.
     commitment
         .0
         .push(Commitment(SpendAuth::basepoint() * secret.0));
@@ -222,17 +226,20 @@ fn generate_shares<R: RngCore + CryptoRng>(
         commitment.0.push(Commitment(SpendAuth::basepoint() * c));
     }
 
+    // Evaluate the polynomial with `secret` as the constant term
+    // and `coeffs` as the other coefficients at the point x=share_index,
+    // using Horner's method.
     for index in 1..numshares + 1 {
-        // Evaluate the polynomial with `secret` as the constant term
-        // and `coeffs` as the other coefficients at the point x=share_index
-        // using Horner's method
         let scalar_index = Scalar::from(index as u64);
         let mut value = Scalar::zero();
+
+        // Polynomial evaluation, for this index
         for i in (0..numcoeffs).rev() {
             value += &coefficients[i as usize];
             value *= scalar_index;
         }
         value += secret.0;
+
         shares.push(Share {
             receiver_index: index,
             value: Secret(value),
@@ -338,7 +345,7 @@ impl SignatureShare {
 /// the commitments are public, the nonces should stored in secret storage for later use.
 pub fn preprocess<R>(
     num_nonces: u32,
-    my_index: u32,
+    participant_index: u32,
     rng: &mut R,
 ) -> (Vec<SigningNonces>, Vec<SigningCommitments>)
 where
@@ -349,7 +356,7 @@ where
 
     for _ in 0..num_nonces {
         let nonces = SigningNonces::new(rng);
-        signing_commitments.push(SigningCommitments::from((my_index, &nonces)));
+        signing_commitments.push(SigningCommitments::from((participant_index, &nonces)));
         signing_nonces.push(nonces);
     }
 
@@ -404,7 +411,7 @@ fn gen_challenge(
         .finalize()
 }
 
-/// generates the langrange coefficient for the ith participant.
+/// Generates the langrange coefficient for the i'th participant.
 fn gen_lagrange_coeff(
     signer_index: u32,
     signing_package: &SigningPackage,
@@ -423,7 +430,7 @@ fn gen_lagrange_coeff(
         return Err("Duplicate shares provided");
     }
 
-    // TODO handle this unwrap
+    // TODO: handle this unwrap better like other CtOption's
     let lagrange_coeff = num * den.invert().unwrap();
 
     Ok(lagrange_coeff)
@@ -433,11 +440,12 @@ fn gen_lagrange_coeff(
 /// Receives the message to be signed and a set of signing commitments and
 /// a set of randomizing commitments to be used in that signing operation,
 /// including your own.
+///
 /// Assumes you've already found the nonce that corresponds with the commitment
 /// that you are using for yourself.
 pub fn sign(
     signing_package: &SigningPackage,
-    my_nonces: &SigningNonces, // TODO this should probably consume the nonce
+    participant_nonces: &SigningNonces, // TODO this should probably consume the nonce
     share_package: &SharePackage,
 ) -> Result<SignatureShare, &'static str> {
     let mut bindings: HashMap<u32, Scalar> =
@@ -458,12 +466,13 @@ pub fn sign(
         &share_package.group_public,
     );
 
-    let my_rho_i = bindings
+    let participant_rho_i = bindings
         .get(&share_package.index)
         .ok_or("No matching binding!")?;
 
-    let signature: Scalar = my_nonces.hiding
-        + (my_nonces.binding * my_rho_i)
+    // The Schnorr signature share
+    let signature: Scalar = participant_nonces.hiding
+        + (participant_nonces.binding * participant_rho_i)
         + (lambda_i * share_package.share.value.0 * challenge);
 
     Ok(SignatureShare {
@@ -508,6 +517,7 @@ pub fn aggregate(
         signing_share.check_is_valid(&signer_pubkey, lambda_i, commitment_i, challenge)?;
     }
 
+    // The aggregation of the signature shares by summing them up, resulting in a plain Schnorr signature.
     let mut z = Scalar::zero();
     for signature_share in signing_shares {
         z += signature_share.signature;
