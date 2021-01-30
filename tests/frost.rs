@@ -47,7 +47,7 @@ fn check_sign_with_dealer() {
 
     // The aggregator collects the signing shares from all participants and
     // generates the final signature.
-    let group_signature_res = frost::aggregate(&signing_package, &signature_shares, &pubkeys);
+    let group_signature_res = frost::aggregate(&signing_package, &signature_shares[..], &pubkeys);
     assert!(group_signature_res.is_ok());
     let group_signature = group_signature_res.unwrap();
 
