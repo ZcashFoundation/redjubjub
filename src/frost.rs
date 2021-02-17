@@ -48,7 +48,12 @@ impl Drop for Secret {
     }
 }
 
-// TODO: impl From<Scalar> for Secret;
+impl From<Scalar> for Secret {
+    fn from(source: Scalar) -> Secret {
+        Secret(source)
+    }
+}
+
 // TODO: impl From<jubjub::ExtendedPoint> for Public;
 
 /// A public group element that represents a single signer's public key.
