@@ -143,9 +143,9 @@ impl TryFrom<SharePackage> for KeyPackage {
 /// A FROST keypair, which can be generated either by a trusted dealer or using
 /// a DKG.
 ///
-/// When using a central dealer, [`KeyPackage`]s are distributed to
+/// When using a central dealer, [`SharePackage`]s are distributed to
 /// participants, who then perform verification, before deriving
-/// [`SharePackage`]s, which they store to later use during signing.
+/// [`KeyPackage`]s, which they store to later use during signing.
 pub struct KeyPackage {
     index: u32,
     secret_share: Secret,
