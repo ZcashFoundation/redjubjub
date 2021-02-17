@@ -1,3 +1,13 @@
+// -*- mode: rust; -*-
+//
+// This file is part of redjubjub.
+// Copyright (c) 2020-2021 Zcash Foundation
+// See LICENSE for licensing information.
+//
+// Authors:
+// - Chelsea H. Komlo <me@chelseakomlo.com>
+// - Deirdre Connolly <deirdre@zfnd.org>
+
 //! An implementation of FROST (Flexible Round-Optimized Schnorr Threshold)
 //! signatures.
 //!
