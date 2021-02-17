@@ -1,3 +1,13 @@
+// -*- mode: rust; -*-
+//
+// This file is part of redjubjub.
+// Copyright (c) 2019-2021 Zcash Foundation
+// See LICENSE for licensing information.
+//
+// Authors:
+// - Deirdre Connolly <deirdre@zfnd.org>
+// - Henry de Valence <hdevalence@hdevalence.ca>
+
 #![doc(html_root_url = "https://docs.rs/redjubjub/0.2.2")]
 #![cfg_attr(feature = "nightly", feature(external_doc))]
 #![cfg_attr(feature = "nightly", doc(include = "../README.md"))]
