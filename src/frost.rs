@@ -7,6 +7,7 @@
 // Authors:
 // - Chelsea H. Komlo <me@chelseakomlo.com>
 // - Deirdre Connolly <deirdre@zfnd.org>
+// - isis agora lovecruft <isis@patternsinthevoid.net>
 
 //! An implementation of FROST (Flexible Round-Optimized Schnorr Threshold)
 //! signatures.
@@ -26,12 +27,26 @@ use std::convert::TryFrom;
 
 use std::{collections::HashMap, marker::PhantomData};
 
+use zeroize::Zeroize;
+
 use crate::private::Sealed;
 use crate::{HStar, Scalar, Signature, SpendAuth, VerificationKey};
 
-#[derive(Copy, Clone)]
 /// A secret scalar value representing a single signer's secret key.
+#[derive(Clone, Default)]
 pub struct Secret(Scalar);
+
+impl Zeroize for Secret {
+    fn zeroize(&mut self) {
+        self.0 = Scalar::zero();
+    }
+}
+
+impl Drop for Secret {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
 
 // TODO: impl From<Scalar> for Secret;
 // TODO: impl From<jubjub::ExtendedPoint> for Public;
