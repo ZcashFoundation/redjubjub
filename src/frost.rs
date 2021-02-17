@@ -189,7 +189,7 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
         Err(_) => return Err("Cannot convert public key"),
     };
 
-    let shares = generate_shares(secret, num_signers, threshold, rng)?;
+    let shares = generate_shares(&secret, num_signers, threshold, rng)?;
     let mut sharepackages: Vec<SharePackage> = Vec::with_capacity(num_signers as usize);
     let mut signer_pubkeys: HashMap<u32, Public> = HashMap::with_capacity(num_signers as usize);
 
@@ -253,7 +253,7 @@ fn verify_share(share: &Share) -> Result<(), &'static str> {
 /// - For each participant i, their secret share is f(i)
 /// - The commitment to the secret polynomial f is [g^a, g^b, g^c]
 fn generate_shares<R: RngCore + CryptoRng>(
-    secret: Secret,
+    secret: &Secret,
     numshares: u32,
     threshold: u32,
     mut rng: R,
@@ -674,7 +674,7 @@ mod tests {
 
         let _ = SpendAuth::basepoint() * secret.0;
 
-        let shares = generate_shares(secret, 5, 3, rng).unwrap();
+        let shares = generate_shares(&secret, 5, 3, rng).unwrap();
 
         for share in shares.iter() {
             assert_eq!(verify_share(&share), Ok(()));
