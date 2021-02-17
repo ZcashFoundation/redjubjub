@@ -183,12 +183,7 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
     rng.fill_bytes(&mut bytes);
 
     let secret = Secret(Scalar::from_bytes_wide(&bytes));
-    let group_pk_bytes = jubjub::AffinePoint::from(SpendAuth::basepoint() * secret.0).to_bytes();
-    let group_public = match VerificationKey::try_from(group_pk_bytes) {
-        Ok(x) => x,
-        Err(_) => return Err("Cannot convert public key"),
-    };
-
+    let group_public = VerificationKey::from(&secret.0);
     let shares = generate_shares(&secret, num_signers, threshold, rng)?;
     let mut sharepackages: Vec<SharePackage> = Vec::with_capacity(num_signers as usize);
     let mut signer_pubkeys: HashMap<u32, Public> = HashMap::with_capacity(num_signers as usize);
