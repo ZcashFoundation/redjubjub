@@ -30,7 +30,7 @@ thiserror = "1.0"
 bincode = "1"
 criterion = "0.3"
 lazy_static = "1.4"
-proptest = "0.10"
+proptest = "1.0"
 rand = "0.7"
 rand_chacha = "0.2"
 
