@@ -1,4 +1,4 @@
-A minimal [RedJubjub][redjubjub] implementation for use in [Zebra][zebra].
+A minimal [RedDSA][reddsa] implementation for use in Zcash.
 
 Two parameterizations of RedJubjub are used in Zcash, one for
 `BindingSig` and one for `SpendAuthSig`. This library distinguishes
@@ -19,7 +19,7 @@ verifying the signature:
 ```rust
 # use std::convert::TryFrom;
 use rand::thread_rng;
-use redjubjub::*;
+use reddsa::*;
 
 let msg = b"Hello!";
 
@@ -46,7 +46,7 @@ assert!(
 cargo doc --features "nightly" --open
 ```
 
-[redjubjub]: https://zips.z.cash/protocol/protocol.pdf#concretereddsa
+[reddsa]: https://zips.z.cash/protocol/protocol.pdf#concretereddsa
 [zebra]: https://github.com/ZcashFoundation/zebra
 [refinement]: https://en.wikipedia.org/wiki/Refinement_type
 [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed

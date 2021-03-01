@@ -1,7 +1,7 @@
 use rand::thread_rng;
 use std::collections::HashMap;
 
-use redjubjub::frost;
+use reddsa::frost;
 
 #[test]
 fn check_sign_with_dealer() {

@@ -1,6 +1,6 @@
 use rand::thread_rng;
 
-use redjubjub::*;
+use reddsa::*;
 
 #[test]
 fn spendauth_batch_verify() {

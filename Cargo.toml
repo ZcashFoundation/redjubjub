@@ -1,18 +1,23 @@
 [package]
-name = "redjubjub"
+name = "reddsa"
 edition = "2018"
 # When releasing to crates.io:
 # - Update html_root_url
 # - Update CHANGELOG.md
 # - Create git tag.
-version = "0.4.0"
-authors = ["Henry de Valence <hdevalence@hdevalence.ca>", "Deirdre Connolly <durumcrustulum@gmail.com>", "Chelsea Komlo <me@chelseakomlo.com>"]
+version = "0.0.0"
+authors = [
+    "Henry de Valence <hdevalence@hdevalence.ca>",
+    "Deirdre Connolly <durumcrustulum@gmail.com>",
+    "Chelsea Komlo <me@chelseakomlo.com>",
+    "Jack Grigg <jack@electriccoin.co>",
+]
 readme = "README.md"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/ZcashFoundation/redjubjub"
+repository = "https://github.com/ZcashFoundation/reddsa"
 categories = ["cryptography"]
-keywords = ["cryptography", "crypto", "jubjub", "redjubjub", "zcash"]
-description = "A standalone implementation of the RedJubjub signature scheme."
+keywords = ["cryptography", "crypto", "zcash"]
+description = "A standalone implementation of the RedDSA signature scheme."
 
 [package.metadata.docs.rs]
 features = ["nightly"]

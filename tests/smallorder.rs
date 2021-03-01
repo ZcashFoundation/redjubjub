@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use jubjub::{AffinePoint, Fq};
 
-use redjubjub::*;
+use reddsa::*;
 
 #[test]
 fn identity_publickey_passes() {

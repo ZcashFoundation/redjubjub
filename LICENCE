@@ -4,7 +4,7 @@ LICENCE.Apache-2.0 files contained within this software distribution.
 
 ==============================================================================
 
-Portions of redjubjub are taken from curve25519-dalek, which can be found at
+Portions of reddsa are taken from curve25519-dalek, which can be found at
 <https://github.com/dalek-cryptography/curve25519-dalek>, under the following
 license.  This implementation does NOT use the portions of curve25519-dalek
 which were originally derived from Adam Langley's Go edwards25519

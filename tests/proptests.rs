@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use proptest::prelude::*;
 use rand_core::{CryptoRng, RngCore};
 
-use redjubjub::*;
+use reddsa::*;
 
 /// A signature test-case, containing signature data and expected validity.
 #[derive(Clone, Debug)]

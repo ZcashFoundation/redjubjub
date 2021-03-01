@@ -4,11 +4,11 @@ RUN apt-get update && \
 	apt-get install -y --no-install-recommends \
 	make cmake g++ gcc
 
-RUN mkdir /redjubjub
-WORKDIR /redjubjub
+RUN mkdir /reddsa
+WORKDIR /reddsa
 
 ENV RUST_BACKTRACE 1
-ENV CARGO_HOME /redjubjub/.cargo/
+ENV CARGO_HOME /reddsa/.cargo/
 
 # Copy local code to the container image.
 # Assumes that we are in the git repo.
