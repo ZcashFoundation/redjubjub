@@ -64,7 +64,7 @@ impl<T: SigType> SignatureCase<T> {
             VerificationKeyBytes::<T>::from(bytes)
         };
 
-        // Check that the verification key is a valid RedJubjub verification key.
+        // Check that the verification key is a valid RedDSA verification key.
         let pub_key = VerificationKey::try_from(pk_bytes)
             .expect("The test verification key to be well-formed.");
 
@@ -114,8 +114,8 @@ proptest! {
 
         // Create a test case for each signature type.
         let msg = b"test message for proptests";
-        let mut binding = SignatureCase::<Binding>::new(&mut rng, msg.to_vec());
-        let mut spendauth = SignatureCase::<SpendAuth>::new(&mut rng, msg.to_vec());
+        let mut binding = SignatureCase::<sapling::Binding>::new(&mut rng, msg.to_vec());
+        let mut spendauth = SignatureCase::<sapling::SpendAuth>::new(&mut rng, msg.to_vec());
 
         // Apply tweaks to each case.
         for t in &tweaks {
@@ -136,10 +136,10 @@ proptest! {
             // XXX-jubjub: better API for this
             let mut bytes = [0; 64];
             rng.fill_bytes(&mut bytes[..]);
-            Randomizer::from_bytes_wide(&bytes)
+            jubjub::Scalar::from_bytes_wide(&bytes)
         };
 
-        let sk = SigningKey::<SpendAuth>::new(&mut rng);
+        let sk = SigningKey::<sapling::SpendAuth>::new(&mut rng);
         let pk = VerificationKey::from(&sk);
 
         let sk_r = sk.randomize(&r);

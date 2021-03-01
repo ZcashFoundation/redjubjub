@@ -8,25 +8,32 @@
 // - Deirdre Connolly <deirdre@zfnd.org>
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
-use blake2b_simd::{Params, State};
-use jubjub::Scalar;
+use std::marker::PhantomData;
 
-/// Provides H^star, the hash-to-scalar function used by RedJubjub.
-pub struct HStar {
+use blake2b_simd::{Params, State};
+
+use crate::{private::SealedScalar, SigType};
+
+/// Provides H^star, the hash-to-scalar function used by RedDSA.
+pub struct HStar<T: SigType> {
     state: State,
+    _marker: PhantomData<T>,
 }
 
-impl Default for HStar {
+impl<T: SigType> Default for HStar<T> {
     fn default() -> Self {
         let state = Params::new()
             .hash_length(64)
-            .personal(b"Zcash_RedJubjubH")
+            .personal(T::H_STAR_PERSONALIZATION)
             .to_state();
-        Self { state }
+        Self {
+            state,
+            _marker: PhantomData::default(),
+        }
     }
 }
 
-impl HStar {
+impl<T: SigType> HStar<T> {
     /// Add `data` to the hash, and return `Self` for chaining.
     pub fn update(&mut self, data: impl AsRef<[u8]>) -> &mut Self {
         self.state.update(data.as_ref());
@@ -34,7 +41,7 @@ impl HStar {
     }
 
     /// Consume `self` to compute the hash output.
-    pub fn finalize(&self) -> Scalar {
-        Scalar::from_bytes_wide(self.state.finalize().as_array())
+    pub fn finalize(&self) -> T::Scalar {
+        T::Scalar::from_bytes_wide(self.state.finalize().as_array())
     }
 }

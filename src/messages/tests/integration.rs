@@ -4,7 +4,7 @@ use crate::{
         validate::{MsgErr, Validate},
         *,
     },
-    verification_key,
+    sapling, verification_key,
 };
 use rand::thread_rng;
 use serde_json;
@@ -53,8 +53,12 @@ fn validate_sender_receiver() {
 #[test]
 fn validate_sharepackage() {
     let setup = basic_setup();
-    let (mut shares, _pubkeys) =
-        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
+    let (mut shares, _pubkeys) = frost::keygen_with_dealer::<_, sapling::SpendAuth>(
+        setup.num_signers,
+        setup.threshold,
+        setup.rng.clone(),
+    )
+    .unwrap();
 
     let header = create_valid_header(setup.signer1, setup.signer2);
 
@@ -130,8 +134,12 @@ fn validate_sharepackage() {
 fn serialize_sharepackage() {
     let setup = basic_setup();
 
-    let (mut shares, _pubkeys) =
-        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
+    let (mut shares, _pubkeys) = frost::keygen_with_dealer::<_, sapling::SpendAuth>(
+        setup.num_signers,
+        setup.threshold,
+        setup.rng.clone(),
+    )
+    .unwrap();
 
     let header = create_valid_header(setup.dealer, setup.signer1);
 
@@ -196,7 +204,8 @@ fn serialize_sharepackage() {
 fn validate_signingcommitments() {
     let mut setup = basic_setup();
 
-    let (_nonce, commitment) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
+    let (_nonce, commitment) =
+        frost::preprocess::<_, sapling::SpendAuth>(1, u64::from(setup.signer1), &mut setup.rng);
 
     let header = create_valid_header(setup.aggregator, setup.signer2);
 
@@ -236,7 +245,8 @@ fn validate_signingcommitments() {
 fn serialize_signingcommitments() {
     let mut setup = basic_setup();
 
-    let (_nonce, commitment) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
+    let (_nonce, commitment) =
+        frost::preprocess::<_, sapling::SpendAuth>(1, u64::from(setup.signer1), &mut setup.rng);
 
     let header = create_valid_header(setup.aggregator, setup.signer1);
 
@@ -724,16 +734,16 @@ fn basic_setup() -> Setup {
     }
 }
 
-fn full_setup() -> (Setup, signature::Signature<SpendAuth>) {
+fn full_setup() -> (Setup, signature::Signature<sapling::SpendAuth>) {
     let mut setup = basic_setup();
 
     // aggregator creates the shares and pubkeys for this round
     let (shares, pubkeys) =
         frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
-    let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces>> =
+    let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces<sapling::SpendAuth>>> =
         std::collections::HashMap::with_capacity(setup.threshold as usize);
-    let mut commitments: Vec<frost::SigningCommitments> =
+    let mut commitments: Vec<frost::SigningCommitments<sapling::SpendAuth>> =
         Vec::with_capacity(setup.threshold as usize);
 
     // aggregator generates nonces and signing commitments for each participant.
@@ -744,7 +754,7 @@ fn full_setup() -> (Setup, signature::Signature<SpendAuth>) {
     }
 
     // aggregator generates a signing package
-    let mut signature_shares: Vec<frost::SignatureShare> =
+    let mut signature_shares: Vec<frost::SignatureShare<sapling::SpendAuth>> =
         Vec::with_capacity(setup.threshold as usize);
     let message = "message to sign".as_bytes().to_vec();
     let signing_package = frost::SigningPackage {
@@ -770,7 +780,7 @@ fn full_setup() -> (Setup, signature::Signature<SpendAuth>) {
 }
 
 fn generate_share_commitment(
-    shares: &Vec<frost::SharePackage>,
+    shares: &Vec<frost::SharePackage<sapling::SpendAuth>>,
     participants: Vec<ParticipantId>,
 ) -> BTreeMap<ParticipantId, Commitment> {
     assert_eq!(shares.len(), participants.len());
@@ -787,7 +797,7 @@ fn generate_share_commitment(
 }
 
 fn create_signing_commitments(
-    commitments: Vec<frost::SigningCommitments>,
+    commitments: Vec<frost::SigningCommitments<sapling::SpendAuth>>,
     participants: Vec<ParticipantId>,
 ) -> BTreeMap<ParticipantId, SigningCommitments> {
     assert_eq!(commitments.len(), participants.len());

@@ -6,12 +6,12 @@ use std::convert::TryFrom;
 
 enum Item {
     SpendAuth {
-        vk_bytes: VerificationKeyBytes<SpendAuth>,
-        sig: Signature<SpendAuth>,
+        vk_bytes: VerificationKeyBytes<sapling::SpendAuth>,
+        sig: Signature<sapling::SpendAuth>,
     },
     Binding {
-        vk_bytes: VerificationKeyBytes<Binding>,
-        sig: Signature<Binding>,
+        vk_bytes: VerificationKeyBytes<sapling::Binding>,
+        sig: Signature<sapling::Binding>,
     },
 }
 
@@ -21,13 +21,13 @@ fn sigs_with_distinct_keys() -> impl Iterator<Item = Item> {
         let msg = b"Bench";
         match rng.gen::<u8>() % 2 {
             0 => {
-                let sk = SigningKey::<SpendAuth>::new(thread_rng());
+                let sk = SigningKey::<sapling::SpendAuth>::new(thread_rng());
                 let vk_bytes = VerificationKey::from(&sk).into();
                 let sig = sk.sign(thread_rng(), &msg[..]);
                 Item::SpendAuth { vk_bytes, sig }
             }
             1 => {
-                let sk = SigningKey::<Binding>::new(thread_rng());
+                let sk = SigningKey::<sapling::Binding>::new(thread_rng());
                 let vk_bytes = VerificationKey::from(&sk).into();
                 let sig = sk.sign(thread_rng(), &msg[..]);
                 Item::Binding { vk_bytes, sig }
@@ -76,10 +76,10 @@ fn bench_batch_verify(c: &mut Criterion) {
                         let msg = b"Bench";
                         match item {
                             Item::SpendAuth { vk_bytes, sig } => {
-                                batch.queue((*vk_bytes, *sig, msg));
+                                batch.queue(batch::Item::from_spendauth(*vk_bytes, *sig, msg));
                             }
                             Item::Binding { vk_bytes, sig } => {
-                                batch.queue((*vk_bytes, *sig, msg));
+                                batch.queue(batch::Item::from_binding(*vk_bytes, *sig, msg));
                             }
                         }
                     }

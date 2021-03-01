@@ -7,12 +7,12 @@
 // Authors:
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
-//! Redjubjub Signatures
+//! RedDSA Signatures
 use std::marker::PhantomData;
 
 use crate::SigType;
 
-/// A RedJubJub signature.
+/// A RedDSA signature.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Signature<T: SigType> {

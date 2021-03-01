@@ -12,7 +12,7 @@
 
 use std::{borrow::Borrow, fmt::Debug};
 
-use jubjub::*;
+use jubjub::{ExtendedNielsPoint, ExtendedPoint};
 
 pub trait NonAdjacentForm {
     fn non_adjacent_form(&self, w: usize) -> [i8; 256];
@@ -20,7 +20,9 @@ pub trait NonAdjacentForm {
 
 /// A trait for variable-time multiscalar multiplication without precomputation.
 pub trait VartimeMultiscalarMul {
-    /// The type of point being multiplied, e.g., `AffinePoint`.
+    /// The type of scalar being multiplied, e.g., `jubjub::Scalar`.
+    type Scalar;
+    /// The type of point being multiplied, e.g., `jubjub::AffinePoint`.
     type Point;
 
     /// Given an iterator of public scalars and an iterator of
@@ -32,7 +34,7 @@ pub trait VartimeMultiscalarMul {
     fn optional_multiscalar_mul<I, J>(scalars: I, points: J) -> Option<Self::Point>
     where
         I: IntoIterator,
-        I::Item: Borrow<Scalar>,
+        I::Item: Borrow<Self::Scalar>,
         J: IntoIterator<Item = Option<Self::Point>>;
 
     /// Given an iterator of public scalars and an iterator of
@@ -46,7 +48,7 @@ pub trait VartimeMultiscalarMul {
     fn vartime_multiscalar_mul<I, J>(scalars: I, points: J) -> Self::Point
     where
         I: IntoIterator,
-        I::Item: Borrow<Scalar>,
+        I::Item: Borrow<Self::Scalar>,
         J: IntoIterator,
         J::Item: Borrow<Self::Point>,
         Self::Point: Clone,
@@ -59,7 +61,7 @@ pub trait VartimeMultiscalarMul {
     }
 }
 
-impl NonAdjacentForm for Scalar {
+impl NonAdjacentForm for jubjub::Scalar {
     /// Compute a width-\\(w\\) "Non-Adjacent Form" of this scalar.
     ///
     /// Thanks to curve25519-dalek
@@ -155,13 +157,14 @@ impl<'a> From<&'a ExtendedPoint> for LookupTable5<ExtendedNielsPoint> {
 }
 
 impl VartimeMultiscalarMul for ExtendedPoint {
+    type Scalar = jubjub::Scalar;
     type Point = ExtendedPoint;
 
     #[allow(non_snake_case)]
     fn optional_multiscalar_mul<I, J>(scalars: I, points: J) -> Option<ExtendedPoint>
     where
         I: IntoIterator,
-        I::Item: Borrow<Scalar>,
+        I::Item: Borrow<Self::Scalar>,
         J: IntoIterator<Item = Option<ExtendedPoint>>,
     {
         let nafs: Vec<_> = scalars

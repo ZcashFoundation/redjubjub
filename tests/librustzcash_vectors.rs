@@ -26,8 +26,8 @@ fn verify_librustzcash_binding() {
 lazy_static! {
     static ref LIBRUSTZCASH_SPENDAUTH_SIGS: [(
         Vec<u8>,
-        Signature<SpendAuth>,
-        VerificationKeyBytes<SpendAuth>
+        Signature<sapling::SpendAuth>,
+        VerificationKeyBytes<sapling::SpendAuth>
     ); 32] = [
         (
             [
@@ -638,7 +638,11 @@ lazy_static! {
             .into(),
         ),
     ];
-    static ref LIBRUSTZCASH_BINDING_SIGS: [(Vec<u8>, Signature<Binding>, VerificationKeyBytes<Binding>); 32] = [
+    static ref LIBRUSTZCASH_BINDING_SIGS: [(
+        Vec<u8>,
+        Signature<sapling::Binding>,
+        VerificationKeyBytes<sapling::Binding>
+    ); 32] = [
         (
             [
                 16, 28, 190, 75, 156, 66, 96, 79, 4, 199, 3, 195, 150, 247, 136, 198, 203, 45, 109,

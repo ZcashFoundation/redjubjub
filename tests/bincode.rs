@@ -9,8 +9,8 @@ proptest! {
     fn secretkey_serialization(
         bytes in prop::array::uniform32(any::<u8>()),
     ) {
-        let sk_result_from = SigningKey::<SpendAuth>::try_from(bytes);
-        let sk_result_bincode: Result<SigningKey::<SpendAuth>, _>
+        let sk_result_from = SigningKey::<sapling::SpendAuth>::try_from(bytes);
+        let sk_result_bincode: Result<SigningKey::<sapling::SpendAuth>, _>
             = bincode::deserialize(&bytes[..]);
 
         // Check 1: both decoding methods should agree
@@ -39,8 +39,8 @@ proptest! {
     fn publickeybytes_serialization(
         bytes in prop::array::uniform32(any::<u8>()),
     ) {
-        let pk_bytes_from = VerificationKeyBytes::<SpendAuth>::from(bytes);
-        let pk_bytes_bincode: VerificationKeyBytes::<SpendAuth>
+        let pk_bytes_from = VerificationKeyBytes::<sapling::SpendAuth>::from(bytes);
+        let pk_bytes_bincode: VerificationKeyBytes::<sapling::SpendAuth>
             = bincode::deserialize(&bytes[..]).unwrap();
 
         // Check 1: both decoding methods should have the same result.
@@ -59,8 +59,8 @@ proptest! {
     fn publickey_serialization(
         bytes in prop::array::uniform32(any::<u8>()),
     ) {
-        let pk_result_try_from = VerificationKey::<SpendAuth>::try_from(bytes);
-        let pk_result_bincode: Result<VerificationKey::<SpendAuth>, _>
+        let pk_result_try_from = VerificationKey::<sapling::SpendAuth>::try_from(bytes);
+        let pk_result_bincode: Result<VerificationKey::<sapling::SpendAuth>, _>
             = bincode::deserialize(&bytes[..]);
 
         // Check 1: both decoding methods should have the same result
@@ -93,8 +93,8 @@ proptest! {
             bytes
         };
 
-        let sig_bytes_from = Signature::<SpendAuth>::from(bytes);
-        let sig_bytes_bincode: Signature::<SpendAuth>
+        let sig_bytes_from = Signature::<sapling::SpendAuth>::from(bytes);
+        let sig_bytes_bincode: Signature::<sapling::SpendAuth>
             = bincode::deserialize(&bytes[..]).unwrap();
 
         // Check 1: both decoding methods should have the same result.

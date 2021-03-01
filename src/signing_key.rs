@@ -13,19 +13,21 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::{Error, Randomizer, SigType, Signature, SpendAuth, VerificationKey};
+use crate::{
+    private::SealedScalar, Error, Randomizer, SigType, Signature, SpendAuth, VerificationKey,
+};
 
-use jubjub::Scalar;
+use group::{ff::PrimeField, GroupEncoding};
 use rand_core::{CryptoRng, RngCore};
 
-/// A RedJubJub signing key.
+/// A RedDSA signing key.
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "SerdeHelper"))]
 #[cfg_attr(feature = "serde", serde(into = "SerdeHelper"))]
 #[cfg_attr(feature = "serde", serde(bound = "T: SigType"))]
 pub struct SigningKey<T: SigType> {
-    sk: Scalar,
+    sk: T::Scalar,
     pk: VerificationKey<T>,
 }
 
@@ -37,7 +39,7 @@ impl<'a, T: SigType> From<&'a SigningKey<T>> for VerificationKey<T> {
 
 impl<T: SigType> From<SigningKey<T>> for [u8; 32] {
     fn from(sk: SigningKey<T>) -> [u8; 32] {
-        sk.sk.to_bytes()
+        sk.sk.to_repr().as_ref().try_into().unwrap()
     }
 }
 
@@ -46,7 +48,9 @@ impl<T: SigType> TryFrom<[u8; 32]> for SigningKey<T> {
 
     fn try_from(bytes: [u8; 32]) -> Result<Self, Self::Error> {
         // XXX-jubjub: this should not use CtOption
-        let maybe_sk = Scalar::from_bytes(&bytes);
+        let mut repr = <T::Scalar as PrimeField>::Repr::default();
+        repr.as_mut().copy_from_slice(&bytes);
+        let maybe_sk = T::Scalar::from_repr(repr);
         if maybe_sk.is_some().into() {
             let sk = maybe_sk.unwrap();
             let pk = VerificationKey::from(&sk);
@@ -74,10 +78,10 @@ impl<T: SigType> From<SigningKey<T>> for SerdeHelper {
     }
 }
 
-impl SigningKey<SpendAuth> {
+impl<T: SpendAuth> SigningKey<T> {
     /// Randomize this public key with the given `randomizer`.
-    pub fn randomize(&self, randomizer: &Randomizer) -> SigningKey<SpendAuth> {
-        let sk = &self.sk + randomizer;
+    pub fn randomize(&self, randomizer: &Randomizer<T>) -> SigningKey<T> {
+        let sk = self.sk + randomizer;
         let pk = VerificationKey::from(&sk);
         SigningKey { sk, pk }
     }
@@ -89,7 +93,7 @@ impl<T: SigType> SigningKey<T> {
         let sk = {
             let mut bytes = [0; 64];
             rng.fill_bytes(&mut bytes);
-            Scalar::from_bytes_wide(&bytes)
+            T::Scalar::from_bytes_wide(&bytes)
         };
         let pk = VerificationKey::from(&sk);
         SigningKey { sk, pk }
@@ -101,28 +105,31 @@ impl<T: SigType> SigningKey<T> {
         use crate::HStar;
 
         // Choose a byte sequence uniformly at random of length
-        // (\ell_H + 128)/8 bytes.  For RedJubjub this is (512 + 128)/8 = 80.
+        // (\ell_H + 128)/8 bytes.  For RedJubjub and RedPallas this is
+        // (512 + 128)/8 = 80.
         let random_bytes = {
             let mut bytes = [0; 80];
             rng.fill_bytes(&mut bytes);
             bytes
         };
 
-        let nonce = HStar::default()
+        let nonce = HStar::<T>::default()
             .update(&random_bytes[..])
             .update(&self.pk.bytes.bytes[..]) // XXX ugly
             .update(msg)
             .finalize();
 
-        let r_bytes = jubjub::AffinePoint::from(&T::basepoint() * &nonce).to_bytes();
+        let r: T::Point = T::basepoint() * nonce;
+        let r_bytes: [u8; 32] = r.to_bytes().as_ref().try_into().unwrap();
 
-        let c = HStar::default()
+        let c = HStar::<T>::default()
             .update(&r_bytes[..])
             .update(&self.pk.bytes.bytes[..]) // XXX ugly
             .update(msg)
             .finalize();
 
-        let s_bytes = (&nonce + &(&c * &self.sk)).to_bytes();
+        let s = nonce + (c * self.sk);
+        let s_bytes = s.to_repr().as_ref().try_into().unwrap();
 
         Signature {
             r_bytes,

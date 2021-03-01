@@ -1,7 +1,7 @@
 use rand::thread_rng;
 use std::collections::HashMap;
 
-use reddsa::frost;
+use reddsa::{frost, sapling};
 
 #[test]
 fn check_sign_with_dealer() {
@@ -10,9 +10,10 @@ fn check_sign_with_dealer() {
     let threshold = 3;
     let (shares, pubkeys) = frost::keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
 
-    let mut nonces: HashMap<u64, Vec<frost::SigningNonces>> =
+    let mut nonces: HashMap<u64, Vec<frost::SigningNonces<sapling::SpendAuth>>> =
         HashMap::with_capacity(threshold as usize);
-    let mut commitments: Vec<frost::SigningCommitments> = Vec::with_capacity(threshold as usize);
+    let mut commitments: Vec<frost::SigningCommitments<sapling::SpendAuth>> =
+        Vec::with_capacity(threshold as usize);
 
     // Round 1, generating nonces and signing commitments for each participant.
     for participant_index in 1..(threshold + 1) {
@@ -26,7 +27,8 @@ fn check_sign_with_dealer() {
     // This is what the signature aggregator / coordinator needs to do:
     // - decide what message to sign
     // - take one (unused) commitment per signing participant
-    let mut signature_shares: Vec<frost::SignatureShare> = Vec::with_capacity(threshold as usize);
+    let mut signature_shares: Vec<frost::SignatureShare<sapling::SpendAuth>> =
+        Vec::with_capacity(threshold as usize);
     let message = "message to sign".as_bytes();
     let signing_package = frost::SigningPackage {
         message: message.to_vec(),

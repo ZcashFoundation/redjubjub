@@ -8,7 +8,7 @@
 // - Deirdre Connolly <deirdre@zfnd.org>
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
-//! Performs batch RedJubjub signature verification.
+//! Performs batch RedDSA signature verification.
 //!
 //! Batch verification asks whether *all* signatures in some set are valid,
 //! rather than asking whether *each* of them is valid. This allows sharing
@@ -20,10 +20,14 @@
 
 use std::convert::TryFrom;
 
-use jubjub::*;
+use group::{
+    cofactor::CofactorGroup,
+    ff::{Field, PrimeField},
+    GroupEncoding,
+};
 use rand_core::{CryptoRng, RngCore};
 
-use crate::{private::Sealed, scalar_mul::VartimeMultiscalarMul, *};
+use crate::{private::SealedScalar, scalar_mul::VartimeMultiscalarMul, *};
 
 // Shim to generate a random 128bit value in a [u64; 4], without
 // importing `rand`.
@@ -35,16 +39,16 @@ fn gen_128_bits<R: RngCore + CryptoRng>(mut rng: R) -> [u64; 4] {
 }
 
 #[derive(Clone, Debug)]
-enum Inner {
+enum Inner<S: SpendAuth, B: Binding<Scalar = S::Scalar, Point = S::Point>> {
     SpendAuth {
-        vk_bytes: VerificationKeyBytes<SpendAuth>,
-        sig: Signature<SpendAuth>,
-        c: Scalar,
+        vk_bytes: VerificationKeyBytes<S>,
+        sig: Signature<S>,
+        c: S::Scalar,
     },
     Binding {
-        vk_bytes: VerificationKeyBytes<Binding>,
-        sig: Signature<Binding>,
-        c: Scalar,
+        vk_bytes: VerificationKeyBytes<B>,
+        sig: Signature<B>,
+        c: B::Scalar,
     },
 }
 
@@ -54,26 +58,19 @@ enum Inner {
 /// lifetime of the message. This is useful when using the batch verification API
 /// in an async context.
 #[derive(Clone, Debug)]
-pub struct Item {
-    inner: Inner,
+pub struct Item<S: SpendAuth, B: Binding<Scalar = S::Scalar, Point = S::Point>> {
+    inner: Inner<S, B>,
 }
 
-impl<'msg, M: AsRef<[u8]>>
-    From<(
-        VerificationKeyBytes<SpendAuth>,
-        Signature<SpendAuth>,
-        &'msg M,
-    )> for Item
-{
-    fn from(
-        (vk_bytes, sig, msg): (
-            VerificationKeyBytes<SpendAuth>,
-            Signature<SpendAuth>,
-            &'msg M,
-        ),
+impl<S: SpendAuth, B: Binding<Scalar = S::Scalar, Point = S::Point>> Item<S, B> {
+    /// Create a batch item from a `SpendAuth` signature.
+    pub fn from_spendauth<'msg, M: AsRef<[u8]>>(
+        vk_bytes: VerificationKeyBytes<S>,
+        sig: Signature<S>,
+        msg: &'msg M,
     ) -> Self {
         // Compute c now to avoid dependency on the msg lifetime.
-        let c = HStar::default()
+        let c = HStar::<S>::default()
             .update(&sig.r_bytes[..])
             .update(&vk_bytes.bytes[..])
             .update(msg)
@@ -82,16 +79,15 @@ impl<'msg, M: AsRef<[u8]>>
             inner: Inner::SpendAuth { vk_bytes, sig, c },
         }
     }
-}
 
-impl<'msg, M: AsRef<[u8]>> From<(VerificationKeyBytes<Binding>, Signature<Binding>, &'msg M)>
-    for Item
-{
-    fn from(
-        (vk_bytes, sig, msg): (VerificationKeyBytes<Binding>, Signature<Binding>, &'msg M),
+    /// Create a batch item from a `Binding` signature.
+    pub fn from_binding<'msg, M: AsRef<[u8]>>(
+        vk_bytes: VerificationKeyBytes<B>,
+        sig: Signature<B>,
+        msg: &'msg M,
     ) -> Self {
         // Compute c now to avoid dependency on the msg lifetime.
-        let c = HStar::default()
+        let c = HStar::<B>::default()
             .update(&sig.r_bytes[..])
             .update(&vk_bytes.bytes[..])
             .update(msg)
@@ -100,9 +96,7 @@ impl<'msg, M: AsRef<[u8]>> From<(VerificationKeyBytes<Binding>, Signature<Bindin
             inner: Inner::Binding { vk_bytes, sig, c },
         }
     }
-}
 
-impl Item {
     /// Perform non-batched verification of this `Item`.
     ///
     /// This is useful (in combination with `Item::clone`) for implementing fallback
@@ -113,31 +107,36 @@ impl Item {
     #[allow(non_snake_case)]
     pub fn verify_single(self) -> Result<(), Error> {
         match self.inner {
-            Inner::Binding { vk_bytes, sig, c } => VerificationKey::<Binding>::try_from(vk_bytes)
-                .and_then(|vk| vk.verify_prehashed(&sig, c)),
+            Inner::Binding { vk_bytes, sig, c } => {
+                VerificationKey::<B>::try_from(vk_bytes).and_then(|vk| vk.verify_prehashed(&sig, c))
+            }
             Inner::SpendAuth { vk_bytes, sig, c } => {
-                VerificationKey::<SpendAuth>::try_from(vk_bytes)
-                    .and_then(|vk| vk.verify_prehashed(&sig, c))
+                VerificationKey::<S>::try_from(vk_bytes).and_then(|vk| vk.verify_prehashed(&sig, c))
             }
         }
     }
 }
 
-#[derive(Default)]
 /// A batch verification context.
-pub struct Verifier {
+pub struct Verifier<S: SpendAuth, B: Binding<Scalar = S::Scalar, Point = S::Point>> {
     /// Signature data queued for verification.
-    signatures: Vec<Item>,
+    signatures: Vec<Item<S, B>>,
 }
 
-impl Verifier {
+impl<S: SpendAuth, B: Binding<Scalar = S::Scalar, Point = S::Point>> Default for Verifier<S, B> {
+    fn default() -> Self {
+        Verifier { signatures: vec![] }
+    }
+}
+
+impl<S: SpendAuth, B: Binding<Scalar = S::Scalar, Point = S::Point>> Verifier<S, B> {
     /// Construct a new batch verifier.
-    pub fn new() -> Verifier {
+    pub fn new() -> Verifier<S, B> {
         Verifier::default()
     }
 
     /// Queue an Item for verification.
-    pub fn queue<I: Into<Item>>(&mut self, item: I) {
+    pub fn queue<I: Into<Item<S, B>>>(&mut self, item: I) {
         self.signatures.push(item.into());
     }
 
@@ -163,7 +162,7 @@ impl Verifier {
     /// - h_G is the cofactor of the group;
     /// - P_G is the generator of the subgroup;
     ///
-    /// Since RedJubjub uses different subgroups for different types
+    /// Since RedDSA uses different subgroups for different types
     /// of signatures, SpendAuth's and Binding's, we need to have yet
     /// another point and associated scalar accumulator for all the
     /// signatures of each type in our batch, but we can still
@@ -185,8 +184,8 @@ impl Verifier {
         let mut VKs = Vec::with_capacity(n);
         let mut R_coeffs = Vec::with_capacity(self.signatures.len());
         let mut Rs = Vec::with_capacity(self.signatures.len());
-        let mut P_spendauth_coeff = Scalar::zero();
-        let mut P_binding_coeff = Scalar::zero();
+        let mut P_spendauth_coeff = S::Scalar::zero();
+        let mut P_binding_coeff = B::Scalar::zero();
 
         for item in self.signatures.iter() {
             let (s_bytes, r_bytes, c) = match item.inner {
@@ -196,7 +195,9 @@ impl Verifier {
 
             let s = {
                 // XXX-jubjub: should not use CtOption here
-                let maybe_scalar = Scalar::from_bytes(&s_bytes);
+                let mut repr = <S::Scalar as PrimeField>::Repr::default();
+                repr.as_mut().copy_from_slice(&s_bytes);
+                let maybe_scalar = S::Scalar::from_repr(repr);
                 if maybe_scalar.is_some().into() {
                     maybe_scalar.unwrap()
                 } else {
@@ -207,9 +208,11 @@ impl Verifier {
             let R = {
                 // XXX-jubjub: should not use CtOption here
                 // XXX-jubjub: inconsistent ownership in from_bytes
-                let maybe_point = AffinePoint::from_bytes(r_bytes);
+                let mut repr = <S::Point as GroupEncoding>::Repr::default();
+                repr.as_mut().copy_from_slice(&r_bytes);
+                let maybe_point = S::Point::from_bytes(&repr);
                 if maybe_point.is_some().into() {
-                    jubjub::ExtendedPoint::from(maybe_point.unwrap())
+                    maybe_point.unwrap()
                 } else {
                     return Err(Error::InvalidSignature);
                 }
@@ -217,14 +220,14 @@ impl Verifier {
 
             let VK = match item.inner {
                 Inner::SpendAuth { vk_bytes, .. } => {
-                    VerificationKey::<SpendAuth>::try_from(vk_bytes.bytes)?.point
+                    VerificationKey::<S>::try_from(vk_bytes.bytes)?.point
                 }
                 Inner::Binding { vk_bytes, .. } => {
-                    VerificationKey::<Binding>::try_from(vk_bytes.bytes)?.point
+                    VerificationKey::<B>::try_from(vk_bytes.bytes)?.point
                 }
             };
 
-            let z = Scalar::from_raw(gen_128_bits(&mut rng));
+            let z = S::Scalar::from_raw(gen_128_bits(&mut rng));
 
             let P_coeff = z * s;
             match item.inner {
@@ -239,7 +242,7 @@ impl Verifier {
             R_coeffs.push(z);
             Rs.push(R);
 
-            VK_coeffs.push(Scalar::zero() + (z * c));
+            VK_coeffs.push(S::Scalar::zero() + (z * c));
             VKs.push(VK);
         }
 
@@ -250,10 +253,10 @@ impl Verifier {
             .chain(VK_coeffs.iter())
             .chain(R_coeffs.iter());
 
-        let basepoints = [SpendAuth::basepoint(), Binding::basepoint()];
+        let basepoints = [S::basepoint(), B::basepoint()];
         let points = basepoints.iter().chain(VKs.iter()).chain(Rs.iter());
 
-        let check = ExtendedPoint::vartime_multiscalar_mul(scalars, points);
+        let check = S::Point::vartime_multiscalar_mul(scalars, points);
 
         if check.is_small_order().into() {
             Ok(())

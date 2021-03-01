@@ -3,9 +3,10 @@
 //! [RFC-001]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md
 
 use crate::{frost, signature, verification_key, SpendAuth};
+use group::GroupEncoding;
 use serde::{Deserialize, Serialize};
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, convert::TryInto};
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -34,9 +35,12 @@ pub struct Secret([u8; 32]);
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Commitment([u8; 32]);
 
-impl From<frost::Commitment> for Commitment {
-    fn from(value: frost::Commitment) -> Commitment {
-        Commitment(jubjub::AffinePoint::from(value.0).to_bytes())
+impl<S: SpendAuth> From<frost::Commitment<S>> for Commitment {
+    fn from(value: frost::Commitment<S>) -> Commitment {
+        // TODO(str4d): We need to either enforce somewhere that these messages are only
+        // used with curves that have 32-byte encodings, or make the curve a parameter of
+        // the encoding. This will be easier once const_evaluatable_checked stabilises.
+        Commitment(value.0.to_bytes().as_ref().try_into().unwrap())
     }
 }
 
@@ -56,14 +60,14 @@ pub struct GroupCommitment([u8; 32]);
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct SignatureResponse([u8; 32]);
 
-impl From<signature::Signature<SpendAuth>> for SignatureResponse {
-    fn from(value: signature::Signature<SpendAuth>) -> SignatureResponse {
+impl<S: SpendAuth> From<signature::Signature<S>> for SignatureResponse {
+    fn from(value: signature::Signature<S>) -> SignatureResponse {
         SignatureResponse(value.s_bytes)
     }
 }
 
-impl From<signature::Signature<SpendAuth>> for GroupCommitment {
-    fn from(value: signature::Signature<SpendAuth>) -> GroupCommitment {
+impl<S: SpendAuth> From<signature::Signature<S>> for GroupCommitment {
+    fn from(value: signature::Signature<S>) -> GroupCommitment {
         GroupCommitment(value.r_bytes)
     }
 }
@@ -76,8 +80,8 @@ impl From<signature::Signature<SpendAuth>> for GroupCommitment {
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct VerificationKey([u8; 32]);
 
-impl From<verification_key::VerificationKey<SpendAuth>> for VerificationKey {
-    fn from(value: verification_key::VerificationKey<SpendAuth>) -> VerificationKey {
+impl<S: SpendAuth> From<verification_key::VerificationKey<S>> for VerificationKey {
+    fn from(value: verification_key::VerificationKey<S>) -> VerificationKey {
         VerificationKey(<[u8; 32]>::from(value))
     }
 }
@@ -220,19 +224,22 @@ pub struct SigningPackage {
     message: Vec<u8>,
 }
 
-impl From<SigningPackage> for frost::SigningPackage {
-    fn from(value: SigningPackage) -> frost::SigningPackage {
+impl<S: SpendAuth> From<SigningPackage> for frost::SigningPackage<S> {
+    fn from(value: SigningPackage) -> frost::SigningPackage<S> {
         let mut signing_commitments = Vec::new();
         for (participant_id, commitment) in &value.signing_commitments {
+            // TODO(str4d): This will be so much nicer once const_evaluatable_checked
+            // stabilises, and `GroupEncoding::from_bytes` can take the array directly.
+            let mut hiding_repr = <S::Point as GroupEncoding>::Repr::default();
+            let mut binding_repr = <S::Point as GroupEncoding>::Repr::default();
+            hiding_repr.as_mut().copy_from_slice(&commitment.hiding.0);
+            binding_repr.as_mut().copy_from_slice(&commitment.binding.0);
+
             let s = frost::SigningCommitments {
                 index: u64::from(*participant_id),
                 // TODO: The `from_bytes()` response is a `CtOption` so we have to `unwrap()`
-                hiding: jubjub::ExtendedPoint::from(
-                    jubjub::AffinePoint::from_bytes(commitment.hiding.0).unwrap(),
-                ),
-                binding: jubjub::ExtendedPoint::from(
-                    jubjub::AffinePoint::from_bytes(commitment.binding.0).unwrap(),
-                ),
+                hiding: S::Point::from_bytes(&hiding_repr).unwrap(),
+                binding: S::Point::from_bytes(&binding_repr).unwrap(),
             };
             signing_commitments.push(s);
         }
