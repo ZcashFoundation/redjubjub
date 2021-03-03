@@ -33,7 +33,7 @@ criterion = "0.3"
 lazy_static = "1.4"
 proptest = "1.0"
 rand = "0.7"
-rand_chacha = "0.2"
+rand_chacha = "0.3"
 
 [features]
 nightly = []
