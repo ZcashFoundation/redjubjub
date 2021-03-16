@@ -22,11 +22,9 @@
 //! Internally, keygen_with_dealer generates keys using Verifiable Secret
 //! Sharing,  where shares are generated using Shamir Secret Sharing.
 
+use std::{collections::HashMap, convert::TryFrom, marker::PhantomData};
+
 use rand_core::{CryptoRng, RngCore};
-use std::convert::TryFrom;
-
-use std::{collections::HashMap, marker::PhantomData};
-
 use zeroize::Zeroize;
 
 use crate::private::Sealed;
@@ -324,9 +322,17 @@ pub struct SigningNonces {
     binding: Scalar,
 }
 
-// TODO finish drop
 impl Drop for SigningNonces {
-    fn drop(&mut self) {}
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl Zeroize for SigningNonces {
+    fn zeroize(&mut self) {
+        self.hiding = Scalar::zero();
+        self.binding = Scalar::zero();
+    }
 }
 
 impl SigningNonces {
