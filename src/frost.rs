@@ -34,6 +34,9 @@ use crate::{HStar, Scalar, Signature, SpendAuth, VerificationKey};
 #[derive(Clone, Copy, Default)]
 pub struct Secret(Scalar);
 
+// Zeroizes `Secret` to be the `Default` value on drop (when it goes out of
+// scope).  Luckily the derived `Default` includes the `Default` impl of
+// jubjub::Fr/Scalar, which is four 0u64's under the hood.
 impl DefaultIsZeroes for Secret {}
 
 impl From<Scalar> for Secret {
@@ -312,6 +315,9 @@ pub struct SigningNonces {
     binding: Scalar,
 }
 
+// Zeroizes `SigningNonces` to be the `Default` value on drop (when it goes out
+// of scope).  Luckily the derived `Default` includes the `Default` impl of the
+// `jubjub::Fr/Scalar`'s, which is four 0u64's under the hood.
 impl DefaultIsZeroes for SigningNonces {}
 
 impl SigningNonces {
@@ -377,6 +383,10 @@ pub struct SignatureShare {
     pub(crate) signature: Scalar,
 }
 
+// Zeroizes `SignatureShare` to be the `Default` value on drop (when it goes out
+// of scope).  Luckily the derived `Default` includes the `Default` impl of
+// jubjub::Fr/Scalar, which is four 0u64's under the hood, and u32, which is
+// 0u32.
 impl DefaultIsZeroes for SignatureShare {}
 
 impl SignatureShare {
