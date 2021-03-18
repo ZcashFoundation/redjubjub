@@ -31,7 +31,7 @@ use crate::private::Sealed;
 use crate::{HStar, Scalar, Signature, SpendAuth, VerificationKey};
 
 /// A secret scalar value representing a single signer's secret key.
-#[derive(Clone, Default)]
+#[derive(Clone, Copy, Default)]
 pub struct Secret(Scalar);
 
 impl DefaultIsZeroes for Secret {}
@@ -428,11 +428,13 @@ where
 /// Generates the binding factor that ensures each signature share is strongly
 /// bound to a signing set, specific set of commitments, and a specific message.
 fn gen_rho_i(index: u32, signing_package: &SigningPackage) -> Scalar {
+    let message_hash = HStar::default().update(signing_package.message).finalize();
+
     let mut hasher = HStar::default();
     hasher
         .update("FROST_rho".as_bytes())
         .update(index.to_be_bytes())
-        .update(signing_package.message);
+        .update(message_hash.to_bytes());
 
     for item in signing_package.signing_commitments.iter() {
         hasher.update(item.index.to_be_bytes());
