@@ -428,6 +428,12 @@ where
 /// Generates the binding factor that ensures each signature share is strongly
 /// bound to a signing set, specific set of commitments, and a specific message.
 fn gen_rho_i(index: u32, signing_package: &SigningPackage) -> Scalar {
+    // Hash signature message with HStar before deriving the binding factor.
+    //
+    // To avoid a collision with other inputs to the hash that generates the
+    // binding factor, we should hash our input message first. Our 'standard'
+    // hash is HStar, which uses a domain separator already, and is the same one
+    // that generates the binding factor.
     let message_hash = HStar::default().update(signing_package.message).finalize();
 
     let mut hasher = HStar::default();
