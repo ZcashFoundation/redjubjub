@@ -25,7 +25,7 @@
 use std::{collections::HashMap, convert::TryFrom, marker::PhantomData};
 
 use rand_core::{CryptoRng, RngCore};
-use zeroize::Zeroize;
+use zeroize::DefaultIsZeroes;
 
 use crate::private::Sealed;
 use crate::{HStar, Scalar, Signature, SpendAuth, VerificationKey};
@@ -34,17 +34,7 @@ use crate::{HStar, Scalar, Signature, SpendAuth, VerificationKey};
 #[derive(Clone, Default)]
 pub struct Secret(Scalar);
 
-impl Zeroize for Secret {
-    fn zeroize(&mut self) {
-        self.0 = Scalar::zero();
-    }
-}
-
-impl Drop for Secret {
-    fn drop(&mut self) {
-        self.zeroize();
-    }
-}
+impl DefaultIsZeroes for Secret {}
 
 impl From<Scalar> for Secret {
     fn from(source: Scalar) -> Secret {
@@ -316,24 +306,13 @@ fn generate_shares<R: RngCore + CryptoRng>(
 /// Note that [`SigningNonces`] must be used *only once* for a signing
 /// operation; re-using nonces will result in leakage of a signer's long-lived
 /// signing key.
-#[derive(Clone)]
+#[derive(Clone, Copy, Default)]
 pub struct SigningNonces {
     hiding: Scalar,
     binding: Scalar,
 }
 
-impl Drop for SigningNonces {
-    fn drop(&mut self) {
-        self.zeroize();
-    }
-}
-
-impl Zeroize for SigningNonces {
-    fn zeroize(&mut self) {
-        self.hiding = Scalar::zero();
-        self.binding = Scalar::zero();
-    }
-}
+impl DefaultIsZeroes for SigningNonces {}
 
 impl SigningNonces {
     /// Generates a new signing nonce.
@@ -390,12 +369,16 @@ pub struct SigningPackage {
 
 /// A participant's signature share, which the coordinator will use to aggregate
 /// with all other signer's shares into the joint signature.
+#[derive(Clone, Copy, Default)]
 pub struct SignatureShare {
     /// Represents the participant index.
     pub(crate) index: u32,
     /// This participant's signature over the message.
     pub(crate) signature: Scalar,
 }
+
+impl DefaultIsZeroes for SignatureShare {}
+
 impl SignatureShare {
     /// Tests if a signature share issued by a participant is valid before
     /// aggregating it into a final joint signature to publish.
