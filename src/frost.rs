@@ -531,7 +531,7 @@ fn gen_lagrange_coeff(
 /// the commitment that was assigned by the coordinator in the SigningPackage.
 pub fn sign(
     signing_package: &SigningPackage,
-    participant_nonces: &SigningNonces, // TODO this should probably consume the nonce
+    participant_nonces: SigningNonces,
     share_package: &SharePackage,
 ) -> Result<SignatureShare, &'static str> {
     let mut bindings: HashMap<u32, Scalar> =
