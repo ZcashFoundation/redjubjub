@@ -30,6 +30,12 @@ use zeroize::DefaultIsZeroes;
 use crate::private::Sealed;
 use crate::{HStar, Scalar, Signature, SpendAuth, VerificationKey};
 
+use std::fmt;
+
+use serde::de::{self, Deserializer, Visitor};
+use serde::ser::Serializer;
+use serde::{Deserialize, Serialize};
+
 /// A secret scalar value representing a single signer's secret key.
 #[derive(Clone, Copy, Default)]
 pub struct Secret(Scalar);
@@ -39,18 +45,115 @@ pub struct Secret(Scalar);
 // jubjub::Fr/Scalar, which is four 0u64's under the hood.
 impl DefaultIsZeroes for Secret {}
 
+impl Serialize for Secret {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_bytes(&self.0.to_bytes())
+    }
+}
+
+impl<'de> Deserialize<'de> for Secret {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct SecretVisitor;
+
+        impl<'de> Visitor<'de> for SecretVisitor {
+            type Value = Secret;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("newtype Secret")
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let v_bytes = match <[u8; 64]>::try_from(v) {
+                    Ok(v_bytes) => v_bytes,
+                    //TODO Not sure if _e is the right thing to do.
+                    Err(_e) => return Err(E::invalid_length(v.len(), &self)),
+                };
+
+                let scalar = Scalar::from_bytes_wide(&v_bytes);
+                Ok(Secret::from(scalar))
+            }
+        }
+
+        deserializer.deserialize_bytes(SecretVisitor)
+    }
+}
+
 impl From<Scalar> for Secret {
     fn from(source: Scalar) -> Secret {
         Secret(source)
     }
 }
 
+#[derive(Copy, Clone)]
+struct SerializableExtendedPoint(jubjub::ExtendedPoint);
+
+impl From<jubjub::ExtendedPoint> for SerializableExtendedPoint {
+    fn from(source: jubjub::ExtendedPoint) -> Self {
+        SerializableExtendedPoint(source)
+    }
+}
+
+impl Serialize for SerializableExtendedPoint {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_bytes(&jubjub::AffinePoint::from(self.0).to_bytes())
+    }
+}
+
+impl<'de> Deserialize<'de> for SerializableExtendedPoint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct SerializableExtendedPointVisitor;
+
+        impl<'de> Visitor<'de> for SerializableExtendedPointVisitor {
+            type Value = SerializableExtendedPoint;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("newtype SerializableExtendedPoint")
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let v_bytes = match <[u8; 32]>::try_from(v) {
+                    Ok(v_bytes) => v_bytes,
+                    //TODO Not sure if _e is the right thing to do.
+                    Err(_e) => return Err(E::invalid_length(v.len(), &self)),
+                };
+
+                //TODO Avoiding unwrap() might be needed.
+                let affine_point = jubjub::AffinePoint::from_bytes(v_bytes).unwrap();
+                Ok(SerializableExtendedPoint(jubjub::ExtendedPoint::from(
+                    affine_point,
+                )))
+            }
+        }
+
+        deserializer.deserialize_bytes(SerializableExtendedPointVisitor)
+    }
+}
+
 /// A public group element that represents a single signer's public key.
 #[derive(Copy, Clone)]
-pub struct Public(jubjub::ExtendedPoint);
+#[derive(Serialize, Deserialize)]
+pub struct Public(SerializableExtendedPoint);
 
-impl From<jubjub::ExtendedPoint> for Public {
-    fn from(source: jubjub::ExtendedPoint) -> Public {
+impl From<SerializableExtendedPoint> for Public {
+    fn from(source: SerializableExtendedPoint) -> Public {
         Public(source)
     }
 }
@@ -137,6 +240,7 @@ impl TryFrom<SharePackage> for KeyPackage {
 /// When using a central dealer, [`SharePackage`]s are distributed to
 /// participants, who then perform verification, before deriving
 /// [`KeyPackage`]s, which they store to later use during signing.
+#[derive(Serialize, Deserialize)]
 pub struct KeyPackage {
     index: u32,
     secret_share: Secret,
@@ -180,7 +284,9 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
     let mut signer_pubkeys: HashMap<u32, Public> = HashMap::with_capacity(num_signers as usize);
 
     for share in shares {
-        let signer_public = Public(SpendAuth::basepoint() * share.value.0);
+        let signer_public = Public(SerializableExtendedPoint(
+            SpendAuth::basepoint() * share.value.0,
+        ));
         sharepackages.push(SharePackage {
             index: share.receiver_index,
             share: share.clone(),
@@ -410,7 +516,7 @@ impl SignatureShare {
         challenge: Scalar,
     ) -> Result<(), &'static str> {
         if (SpendAuth::basepoint() * self.signature)
-            != (commitment + pubkey.0 * challenge * lambda_i)
+            != (commitment + pubkey.0.0 * challenge * lambda_i)
         {
             return Err("Invalid signature share");
         }
