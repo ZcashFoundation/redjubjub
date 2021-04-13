@@ -1,0 +1,131 @@
+% Created 2021-04-13 Tue 17:46
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\date{\today}
+\title{FROST Messages \& Data Serialization}
+\hypersetup{
+ pdfauthor={m},
+ pdftitle={FROST Messages \& Data Serialization},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 27.1 (Org mode 9.3.8)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+
+\section{Overview}
+\label{sec:org861ac28}
+The following document describes the byte-level structure of messages sent in
+FROST. Each message consists of a header of fixed size followed by the actual
+payload of the message.
+
+\section{Headers}
+\label{sec:org57ec693}
+All messages have the following header:
+
+\begin{center}
+\begin{tabular}{rll}
+Bytes & Field Name & Data Type\\
+\hline
+1 & Message Type & \texttt{u8}\\
+1 & Version & \texttt{u8}\\
+2 & Sender ID & \texttt{u16}\\
+2 & Receiver ID & \texttt{u16}\\
+\end{tabular}
+\end{center}
+
+The \texttt{Message Type} and \texttt{Version} fields specify the data that follows after the
+header. The sender is uniquely identified by the \texttt{Sender ID} field and the receiver
+is uniquely identified by the \texttt{Receiver ID} field. 
+
+\section{Data}
+\label{sec:org93c68ce}
+Messages in FROST are split into four general domains. The following sections
+describe each domain and its messages.
+
+\subsection{Key Generation with DKG}
+\label{sec:org485021f}
+These messages are sent during the Distributed Key Generation (DKG).
+
+\subsubsection{Round One}
+\label{sec:org4a9cfdd}
+Broadcast the public commitment \(\vec{C}\) and \(\sigma\) \\
+
+\noindent
+\textbf{Header}:\\
+\texttt{Message Type = 1}\\
+\texttt{Version = 1}\\
+
+\noindent
+\textbf{Data}:
+\begin{center}
+\begin{tabular}{lll}
+Bytes & Description & Data Type\\
+\hline
+2 & Size of the commitment \texttt{n} & \texttt{u16}\\
+512 * \texttt{n} & Commitments to individual coefficents & \texttt{[AffinePoint; n]}\\
+TBA & \(\sigma\)\textsubscript{i} & \\
+\end{tabular}
+\end{center}
+
+\subsubsection{Round Two}
+\label{sec:org102acd0}
+Broadcast the Secret Shares
+
+\textbf{Header}:\\
+\texttt{Message Type = 2}\\
+\texttt{Version = 1}
+
+\textbf{Data}:
+\begin{center}
+\begin{tabular}{rll}
+Bytes & Description & Data Type\\
+\hline
+256 & Secret share \texttt{f\_i(l)} & \texttt{Scalar}\\
+\end{tabular}
+\end{center}
+
+
+\subsection{Key Generation with Dealer}
+\label{sec:org3e95d94}
+
+\subsection{Preprocessing}
+\label{sec:org50994f9}
+
+\subsection{Signing}
+\label{sec:orged00f32}
+
+\subsubsection{Round One}
+\label{sec:org955198c}
+Share Signing Commitments
+
+\textbf{Header}:\\
+\texttt{Message Type = 3}\\
+\texttt{Version = 1}
+
+\textbf{Data}:
+\begin{center}
+\begin{tabular}{lll}
+Bytes & Description & Data Type\\
+\hline
+2 & Number of signing commitments \texttt{n} & \texttt{u16}\\
+1024 * \texttt{n} & Signing commitments & \texttt{[SigningCommitment; n]}\\
+\end{tabular}
+\end{center}
+\end{document}

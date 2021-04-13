@@ -1,49 +1,82 @@
-#+OPTIONS: toc:nil
+# #+OPTIONS: toc:nil
+#+OPTIONS: author:nil
 
-* Frosty messages
+#+TITLE: FROST Messages & Data Serialization
 
-** Headers
-All messages in Frost have the following header:
+* Overview
+The following document describes the byte-level structure of messages sent in
+FROST. Each message consists of a header of fixed size followed by the actual
+payload of the message.
+
+* Headers
+All messages have the following header:
 
 | Bytes | Field Name   | Data Type |
 |-------+--------------+-----------|
 |     1 | Message Type | =u8=      |
 |     1 | Version      | =u8=      |
-|     1 | Source       | =u8=      |
-|     1 | Destination  | =u8=      |
+|     2 | Sender ID    | =u16=     |
+|     2 | Receiver ID  | =u16=     |
 
 The =Message Type= and =Version= fields specify the data that follows after the
-header. The sender is uniquely identified by the =Source= field and the receiver
-is uniquely identified by the =Destination= field. 
+header. The sender is uniquely identified by the =Sender ID= field and the receiver
+is uniquely identified by the =Receiver ID= field. 
 
-** Data
-The following message types specify the structure of the data contained in a
-Frosty message. The =Version= of each message equals 1.
+* Data
+Messages in FROST are split into four general domains. The following sections
+describe each domain and its messages.
 
-*** Message Type 1 
-Request signing commitments from other participants.
+** Key Generation with DKG
+These messages are sent during the Distributed Key Generation (DKG).
+
+*** Round One 
+Broadcast the public commitment $\vec{C}$ and \sigma \\
+
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
+*Header*:\\
+=Message Type = 1=\\
+=Version = 1=\\
+
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
+*Data*:
+| Bytes     | Description                           | Data Type          |
+|-----------+---------------------------------------+--------------------|
+| 2         | Size of the commitment =n=            | =u16=              |
+| 512 * =n= | Commitments to individual coefficents | =[AffinePoint; n]= |
+| TBA       | \sigma_i                              |                    |
+
+*** Round Two
+Broadcast the Secret Shares
+
+*Header*:\\
+=Message Type = 2=\\
+=Version = 1=
 
 *Data*:
-| Bytes | Description                     | Data Type |
-|-------+---------------------------------+-----------|
-|     2 | Number of requested commitments | =u16=     |
+| Bytes | Description           | Data Type |
+|-------+-----------------------+-----------|
+|   256 | Secret share =f_i(l)= | =Scalar=  |
 
-*** Message Type 2 
-Send the requested signing commitments.
+
+** Key Generation with Dealer
+
+** Preprocessing
+
+** Signing
+
+*** Round One
+Share Signing Commitments
+
+*Header*:\\
+=Message Type = 3=\\
+=Version = 1=
 
 *Data*:
-| Bytes     | Description                       | Data Type     |
-|-----------+-----------------------------------+---------------|
-| 2         | Number of signing commitments =n= | =u16=         |
-| 512 * =n= | Signing commitments               | =[u8; 512*n]= |
-
-*** Message Type = 3 
-Send the message (document) to be signed.
-
-*Data*:
-| Bytes     | Description               | Data Type     |
-|-----------+---------------------------+---------------|
-| 2         | Message length =l=        | =u16=         |
-| =l=       | Message to be signed      | =[u8; l]=     |
-| 1         | Number of commitments =t= | =u8=          |
-| 512 * =t= | Signing commitments       | =[u8; 512*t]= |
+| Bytes      | Description                       | Data Type                |
+|------------+-----------------------------------+--------------------------|
+| 2          | Number of signing commitments =n= | =u16=                    |
+| 1024 * =n= | Signing commitments               | =[SigningCommitment; n]= |
