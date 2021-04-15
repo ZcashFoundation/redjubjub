@@ -1,36 +1,40 @@
-# #+OPTIONS: toc:nil
 #+OPTIONS: author:nil
+
+#+latex_header: \hypersetup{colorlinks=true,linkcolor=blue}
 
 #+TITLE: FROST Messages & Data Serialization
 
 * Overview
 The following document describes the byte-level structure of messages sent in
-FROST. Each message consists of a header of fixed size followed by the actual
-payload of the message.
+FROST cite:frost. Each message consists of a fixed-sized header followed by the
+actual payload of the message.
 
 * Headers
 All messages have the following header:
 
-| Bytes | Field Name   | Data Type |
-|-------+--------------+-----------|
-|     1 | Message Type | =u8=      |
-|     1 | Version      | =u8=      |
-|     2 | Sender ID    | =u16=     |
-|     2 | Receiver ID  | =u16=     |
+| Bytes | Field Name     | Data Type |
+|-------+----------------+-----------|
+|     1 | =Message Type= | =u8=      |
+|     1 | =Version=      | =u8=      |
+|     2 | =Sender ID=    | =u16=     |
+|     2 | =Receiver ID=  | =u16=     |
 
-The =Message Type= and =Version= fields specify the data that follows after the
-header. The sender is uniquely identified by the =Sender ID= field and the receiver
-is uniquely identified by the =Receiver ID= field. 
+The =Message Type= and =Version= fields specify the payload that follows after
+the header. The sender is uniquely identified by the =Sender ID= [fn:size] field
+and the receiver is uniquely identified by the =Receiver ID= [fn:size] field.
 
-* Data
-Messages in FROST are split into four general domains. The following sections
+[fn:size] TODO: Consider other data types such as =u32= or =u64=.
+
+* Payload types
+Messages in FROST are split into three general domains. The following sections
 describe each domain and its messages.
 
 ** Key Generation with DKG
 These messages are sent during the Distributed Key Generation (DKG).
 
 *** Round One 
-Broadcast the public commitment $\vec{C}$ and \sigma \\
+Broadcast the public commitment vector $\vec{C} = \langle \phi_0, \ldots,
+\phi_{t-1} \rangle$ and the proof of knowledge $\sigma = (R, \mu)$. \\
 
 #+BEGIN_EXPORT latex
 \noindent
@@ -42,41 +46,98 @@ Broadcast the public commitment $\vec{C}$ and \sigma \\
 #+BEGIN_EXPORT latex
 \noindent
 #+END_EXPORT
-*Data*:
-| Bytes     | Description                           | Data Type          |
-|-----------+---------------------------------------+--------------------|
-| 2         | Size of the commitment =n=            | =u16=              |
-| 512 * =n= | Commitments to individual coefficents | =[AffinePoint; n]= |
-| TBA       | \sigma_i                              |                    |
+*Payload*:
+|         Bytes | Description                         | Data Type          |
+|---------------+-------------------------------------+--------------------|
+|             2 | Length =t= of the commitment vector | =u16=              |
+| 512 \cdot =t= | Individual commitments \phi_j       | =[AffinePoint; t]= |
+|           256 | The value $R$                       | =Scalar=           |
+|           256 | The value \mu                       | =Scalar=           |
 
 *** Round Two
-Broadcast the Secret Shares
+Broadcast the secret shares $f(l)$.\\
 
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
 *Header*:\\
 =Message Type = 2=\\
-=Version = 1=
+=Version = 1=\\
 
-*Data*:
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
+*Payload*:
 | Bytes | Description           | Data Type |
 |-------+-----------------------+-----------|
-|   256 | Secret share =f_i(l)= | =Scalar=  |
+|   256 | Secret share $f(l)$   | =Scalar=  |
 
 
 ** Key Generation with Dealer
+...\\
 
-** Preprocessing
-
-** Signing
-
-*** Round One
-Share Signing Commitments
-
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
 *Header*:\\
 =Message Type = 3=\\
-=Version = 1=
+=Version = 1=\\
 
-*Data*:
-| Bytes      | Description                       | Data Type                |
-|------------+-----------------------------------+--------------------------|
-| 2          | Number of signing commitments =n= | =u16=                    |
-| 1024 * =n= | Signing commitments               | =[SigningCommitment; n]= |
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
+*Payload*:
+| Bytes | Description | Data Type |
+|-------+-------------+-----------|
+| ...   | ...         | ...       |
+
+** Signing
+...
+
+*** Round One
+Share signing commitments.\\
+
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
+*Header*:\\
+=Message Type = 4=\\
+=Version = 1=\\
+
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
+*Payload*:
+| Bytes          | Description                       | Data Type                |
+|----------------+-----------------------------------+--------------------------|
+| 2              | Number of signing commitments =n= | =u16=                    |
+| 1024 \cdot =n= | Signing commitments               | =[SigningCommitment; n]= |
+
+*** Round Two
+...\\
+
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
+*Header*:\\
+=Message Type = 5=\\
+=Version = 1=\\
+
+#+BEGIN_EXPORT latex
+\noindent
+#+END_EXPORT
+*Payload*:
+| Bytes | Description | Data Type |
+|-------+-------------+-----------|
+| ...   | ...         | ...       |
+
+* Data Types
+** =AffinePoint=
+
+** =Scalar=
+
+** =SigningCommitment=
+
+
+\bibliographystyle{plain}
+\bibliography{refs}

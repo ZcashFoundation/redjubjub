@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <title>FROST Messages &amp; Data Serialization</title>
-<!-- 2021-04-13 Tue 17:46 -->
+<!-- 2021-04-15 Thu 17:13 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="Org-mode">
@@ -222,12 +222,18 @@ MathJax.Hub.Config({
 <ul class="nav">
 <li><a href="#sec-1">1. Overview</a></li>
 <li><a href="#sec-2">2. Headers</a></li>
-<li><a href="#sec-3">3. Data</a>
+<li><a href="#sec-3">3. Payload types</a>
 <ul class="nav">
 <li><a href="#sec-3-1">3.1. Key Generation with DKG</a></li>
 <li><a href="#sec-3-2">3.2. Key Generation with Dealer</a></li>
-<li><a href="#sec-3-3">3.3. Preprocessing</a></li>
-<li><a href="#sec-3-4">3.4. Signing</a></li>
+<li><a href="#sec-3-3">3.3. Signing</a></li>
+</ul>
+</li>
+<li><a href="#sec-4">4. Data Types</a>
+<ul class="nav">
+<li><a href="#sec-4-1">4.1. <code>AffinePoint</code></a></li>
+<li><a href="#sec-4-2">4.2. <code>Scalar</code></a></li>
+<li><a href="#sec-4-3">4.3. <code>SigningCommitment</code></a></li>
 </ul>
 </li>
 </ul>
@@ -240,8 +246,8 @@ MathJax.Hub.Config({
 <div class="outline-text-2" id="text-1">
 <p>
 The following document describes the byte-level structure of messages sent in
-FROST. Each message consists of a header of fixed size followed by the actual
-payload of the message.
+FROST <a href="frost">frost</a>. Each message consists of a fixed-sized header followed by the
+actual payload of the message.
 </p>
 </div>
 </div>
@@ -273,43 +279,43 @@ All messages have the following header:
 <tbody>
 <tr>
 <td class="text-right">1</td>
-<td class="text-left">Message Type</td>
+<td class="text-left"><code>Message Type</code></td>
 <td class="text-left"><code>u8</code></td>
 </tr>
 
 <tr>
 <td class="text-right">1</td>
-<td class="text-left">Version</td>
+<td class="text-left"><code>Version</code></td>
 <td class="text-left"><code>u8</code></td>
 </tr>
 
 <tr>
 <td class="text-right">2</td>
-<td class="text-left">Sender ID</td>
+<td class="text-left"><code>Sender ID</code></td>
 <td class="text-left"><code>u16</code></td>
 </tr>
 
 <tr>
 <td class="text-right">2</td>
-<td class="text-left">Receiver ID</td>
+<td class="text-left"><code>Receiver ID</code></td>
 <td class="text-left"><code>u16</code></td>
 </tr>
 </tbody>
 </table>
 
 <p>
-The <code>Message Type</code> and <code>Version</code> fields specify the data that follows after the
-header. The sender is uniquely identified by the <code>Sender ID</code> field and the receiver
-is uniquely identified by the <code>Receiver ID</code> field. 
+The <code>Message Type</code> and <code>Version</code> fields specify the payload that follows after
+the header. The sender is uniquely identified by the <code>Sender ID</code> <sup><a id="fnr.1" name="fnr.1" class="footref" href="#fn.1">1</a></sup> field
+and the receiver is uniquely identified by the <code>Receiver ID</code> <sup><a id="fnr.1.100" name="fnr.1.100" class="footref" href="#fn.1">1</a></sup> field.
 </p>
 </div>
 </div>
 
 <div id="outline-container-sec-3" class="outline-2">
-<h2 id="sec-3"><span class="section-number-2">3</span> Data</h2>
+<h2 id="sec-3"><span class="section-number-2">3</span> Payload types</h2>
 <div class="outline-text-2" id="text-3">
 <p>
-Messages in FROST are split into four general domains. The following sections
+Messages in FROST are split into three general domains. The following sections
 describe each domain and its messages.
 </p>
 </div>
@@ -326,7 +332,8 @@ These messages are sent during the Distributed Key Generation (DKG).
 <h4 id="sec-3-1-1"><span class="section-number-4">3.1.1</span> Round One</h4>
 <div class="outline-text-4" id="text-3-1-1">
 <p>
-Broadcast the public commitment \(\vec{C}\) and &sigma; <br >
+Broadcast the public commitment vector \(\vec{C} = \langle \phi_0, \ldots,
+\phi_{t-1} \rangle\) and the proof of knowledge \(\sigma = (R, \mu)\). <br >
 </p>
 
 <p>
@@ -336,13 +343,13 @@ Broadcast the public commitment \(\vec{C}\) and &sigma; <br >
 </p>
 
 <p>
-<b>Data</b>:
+<b>Payload</b>:
 </p>
 <table class="table table-striped table-bordered table-hover table-condensed">
 
 
 <colgroup>
-<col  class="left">
+<col  class="right">
 
 <col  class="left">
 
@@ -350,28 +357,34 @@ Broadcast the public commitment \(\vec{C}\) and &sigma; <br >
 </colgroup>
 <thead>
 <tr>
-<th scope="col" class="text-left">Bytes</th>
+<th scope="col" class="text-right">Bytes</th>
 <th scope="col" class="text-left">Description</th>
 <th scope="col" class="text-left">Data Type</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td class="text-left">2</td>
-<td class="text-left">Size of the commitment <code>n</code></td>
+<td class="text-right">2</td>
+<td class="text-left">Length <code>t</code> of the commitment vector</td>
 <td class="text-left"><code>u16</code></td>
 </tr>
 
 <tr>
-<td class="text-left">512 * <code>n</code></td>
-<td class="text-left">Commitments to individual coefficents</td>
-<td class="text-left"><code>[AffinePoint; n]</code></td>
+<td class="text-right">512 &sdot; <code>t</code></td>
+<td class="text-left">Individual commitments &phi;<sub>j</sub></td>
+<td class="text-left"><code>[AffinePoint; t]</code></td>
 </tr>
 
 <tr>
-<td class="text-left">TBA</td>
-<td class="text-left">&sigma;<sub>i</sub></td>
-<td class="text-left">&#xa0;</td>
+<td class="text-right">256</td>
+<td class="text-left">The value \(R\)</td>
+<td class="text-left"><code>Scalar</code></td>
+</tr>
+
+<tr>
+<td class="text-right">256</td>
+<td class="text-left">The value &mu;</td>
+<td class="text-left"><code>Scalar</code></td>
 </tr>
 </tbody>
 </table>
@@ -382,17 +395,17 @@ Broadcast the public commitment \(\vec{C}\) and &sigma; <br >
 <h4 id="sec-3-1-2"><span class="section-number-4">3.1.2</span> Round Two</h4>
 <div class="outline-text-4" id="text-3-1-2">
 <p>
-Broadcast the Secret Shares
+Broadcast the secret shares \(f(l)\).<br >
 </p>
 
 <p>
 <b>Header</b>:<br >
 <code>Message Type = 2</code><br >
-<code>Version = 1</code>
+<code>Version = 1</code><br >
 </p>
 
 <p>
-<b>Data</b>:
+<b>Payload</b>:
 </p>
 <table class="table table-striped table-bordered table-hover table-condensed">
 
@@ -414,7 +427,7 @@ Broadcast the Secret Shares
 <tbody>
 <tr>
 <td class="text-right">256</td>
-<td class="text-left">Secret share <code>f_i(l)</code></td>
+<td class="text-left">Secret share \(f(l)\)</td>
 <td class="text-left"><code>Scalar</code></td>
 </tr>
 </tbody>
@@ -426,30 +439,71 @@ Broadcast the Secret Shares
 
 <div id="outline-container-sec-3-2" class="outline-3">
 <h3 id="sec-3-2"><span class="section-number-3">3.2</span> Key Generation with Dealer</h3>
-</div>
-
-<div id="outline-container-sec-3-3" class="outline-3">
-<h3 id="sec-3-3"><span class="section-number-3">3.3</span> Preprocessing</h3>
-</div>
-
-<div id="outline-container-sec-3-4" class="outline-3">
-<h3 id="sec-3-4"><span class="section-number-3">3.4</span> Signing</h3>
-<div class="outline-text-3" id="text-3-4">
-</div><div id="outline-container-sec-3-4-1" class="outline-4">
-<h4 id="sec-3-4-1"><span class="section-number-4">3.4.1</span> Round One</h4>
-<div class="outline-text-4" id="text-3-4-1">
+<div class="outline-text-3" id="text-3-2">
 <p>
-Share Signing Commitments
+&#x2026;<br >
 </p>
 
 <p>
 <b>Header</b>:<br >
 <code>Message Type = 3</code><br >
-<code>Version = 1</code>
+<code>Version = 1</code><br >
 </p>
 
 <p>
-<b>Data</b>:
+<b>Payload</b>:
+</p>
+<table class="table table-striped table-bordered table-hover table-condensed">
+
+
+<colgroup>
+<col  class="left">
+
+<col  class="left">
+
+<col  class="left">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="text-left">Bytes</th>
+<th scope="col" class="text-left">Description</th>
+<th scope="col" class="text-left">Data Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="text-left">&#x2026;</td>
+<td class="text-left">&#x2026;</td>
+<td class="text-left">&#x2026;</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3" class="outline-3">
+<h3 id="sec-3-3"><span class="section-number-3">3.3</span> Signing</h3>
+<div class="outline-text-3" id="text-3-3">
+<p>
+&#x2026;
+</p>
+</div>
+
+<div id="outline-container-sec-3-3-1" class="outline-4">
+<h4 id="sec-3-3-1"><span class="section-number-4">3.3.1</span> Round One</h4>
+<div class="outline-text-4" id="text-3-3-1">
+<p>
+Share signing commitments.<br >
+</p>
+
+<p>
+<b>Header</b>:<br >
+<code>Message Type = 4</code><br >
+<code>Version = 1</code><br >
+</p>
+
+<p>
+<b>Payload</b>:
 </p>
 <table class="table table-striped table-bordered table-hover table-condensed">
 
@@ -476,7 +530,7 @@ Share Signing Commitments
 </tr>
 
 <tr>
-<td class="text-left">1024 * <code>n</code></td>
+<td class="text-left">1024 &sdot; <code>n</code></td>
 <td class="text-left">Signing commitments</td>
 <td class="text-left"><code>[SigningCommitment; n]</code></td>
 </tr>
@@ -484,11 +538,87 @@ Share Signing Commitments
 </table>
 </div>
 </div>
+
+<div id="outline-container-sec-3-3-2" class="outline-4">
+<h4 id="sec-3-3-2"><span class="section-number-4">3.3.2</span> Round Two</h4>
+<div class="outline-text-4" id="text-3-3-2">
+<p>
+&#x2026;<br >
+</p>
+
+<p>
+<b>Header</b>:<br >
+<code>Message Type = 5</code><br >
+<code>Version = 1</code><br >
+</p>
+
+<p>
+<b>Payload</b>:
+</p>
+<table class="table table-striped table-bordered table-hover table-condensed">
+
+
+<colgroup>
+<col  class="left">
+
+<col  class="left">
+
+<col  class="left">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="text-left">Bytes</th>
+<th scope="col" class="text-left">Description</th>
+<th scope="col" class="text-left">Data Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="text-left">&#x2026;</td>
+<td class="text-left">&#x2026;</td>
+<td class="text-left">&#x2026;</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
-</div></div></div>
+</div>
+</div>
+
+<div id="outline-container-sec-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> Data Types</h2>
+<div class="outline-text-2" id="text-4">
+</div><div id="outline-container-sec-4-1" class="outline-3">
+<h3 id="sec-4-1"><span class="section-number-3">4.1</span> <code>AffinePoint</code></h3>
+</div>
+
+<div id="outline-container-sec-4-2" class="outline-3">
+<h3 id="sec-4-2"><span class="section-number-3">4.2</span> <code>Scalar</code></h3>
+</div>
+
+<div id="outline-container-sec-4-3" class="outline-3">
+<h3 id="sec-4-3"><span class="section-number-3">4.3</span> <code>SigningCommitment</code></h3>
+<div class="outline-text-3" id="text-4-3">
+<p>
+\bibliographystyle{plain}
+\bibliography{refs}
+</p>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+
+<div class="footdef"><sup><a id="fn.1" name="fn.1" class="footnum" href="#fnr.1">1</a></sup> <p class="footpara">
+TODO: Consider other data types such as <code>u32</code> or <code>u64</code>.
+</p></div>
+
+
+</div>
+</div></div></div></div>
 <footer id="postamble" class="">
-<div><p class="date">Created: 2021-04-13 Tue 17:46</p>
+<div><p class="date">Created: 2021-04-15 Thu 17:13</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 27.1 (<a href="http://orgmode.org">Org-mode</a> 9.3.8)</p>
 </div>
 </footer>

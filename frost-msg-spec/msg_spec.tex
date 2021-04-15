@@ -1,4 +1,4 @@
-% Created 2021-04-13 Tue 17:46
+% Created 2021-04-15 Thu 17:06
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -14,6 +14,7 @@
 \usepackage{amssymb}
 \usepackage{capt-of}
 \usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue}
 \date{\today}
 \title{FROST Messages \& Data Serialization}
 \hypersetup{
@@ -30,42 +31,43 @@
 
 
 \section{Overview}
-\label{sec:org861ac28}
+\label{sec:orgcc4f13d}
 The following document describes the byte-level structure of messages sent in
-FROST. Each message consists of a header of fixed size followed by the actual
-payload of the message.
+FROST \cite{frost}. Each message consists of a fixed-sized header followed by the
+actual payload of the message.
 
 \section{Headers}
-\label{sec:org57ec693}
+\label{sec:orgb4d292b}
 All messages have the following header:
 
 \begin{center}
 \begin{tabular}{rll}
 Bytes & Field Name & Data Type\\
 \hline
-1 & Message Type & \texttt{u8}\\
-1 & Version & \texttt{u8}\\
-2 & Sender ID & \texttt{u16}\\
-2 & Receiver ID & \texttt{u16}\\
+1 & \texttt{Message Type} & \texttt{u8}\\
+1 & \texttt{Version} & \texttt{u8}\\
+2 & \texttt{Sender ID} & \texttt{u16}\\
+2 & \texttt{Receiver ID} & \texttt{u16}\\
 \end{tabular}
 \end{center}
 
-The \texttt{Message Type} and \texttt{Version} fields specify the data that follows after the
-header. The sender is uniquely identified by the \texttt{Sender ID} field and the receiver
-is uniquely identified by the \texttt{Receiver ID} field. 
+The \texttt{Message Type} and \texttt{Version} fields specify the payload that follows after
+the header. The sender is uniquely identified by the \texttt{Sender ID} \footnote{TODO: Consider other data types such as \texttt{u32} or \texttt{u64}.\label{orgdd265d5}} field
+and the receiver is uniquely identified by the \texttt{Receiver ID} \textsuperscript{\ref{orgdd265d5}} field.
 
-\section{Data}
-\label{sec:org93c68ce}
+\section{Payload types}
+\label{sec:orgc8202e0}
 Messages in FROST are split into four general domains. The following sections
 describe each domain and its messages.
 
 \subsection{Key Generation with DKG}
-\label{sec:org485021f}
+\label{sec:org1de0023}
 These messages are sent during the Distributed Key Generation (DKG).
 
 \subsubsection{Round One}
-\label{sec:org4a9cfdd}
-Broadcast the public commitment \(\vec{C}\) and \(\sigma\) \\
+\label{sec:org767acec}
+Broadcast the public commitment vector \(\vec{C} = \langle \phi_0, \ldots,
+\phi_{t-1} \rangle\) and the proof of knowledge \(\sigma = (R, \mu)\). \\
 
 \noindent
 \textbf{Header}:\\
@@ -73,59 +75,112 @@ Broadcast the public commitment \(\vec{C}\) and \(\sigma\) \\
 \texttt{Version = 1}\\
 
 \noindent
-\textbf{Data}:
-\begin{center}
-\begin{tabular}{lll}
-Bytes & Description & Data Type\\
-\hline
-2 & Size of the commitment \texttt{n} & \texttt{u16}\\
-512 * \texttt{n} & Commitments to individual coefficents & \texttt{[AffinePoint; n]}\\
-TBA & \(\sigma\)\textsubscript{i} & \\
-\end{tabular}
-\end{center}
-
-\subsubsection{Round Two}
-\label{sec:org102acd0}
-Broadcast the Secret Shares
-
-\textbf{Header}:\\
-\texttt{Message Type = 2}\\
-\texttt{Version = 1}
-
-\textbf{Data}:
+\textbf{Payload}:
 \begin{center}
 \begin{tabular}{rll}
 Bytes & Description & Data Type\\
 \hline
-256 & Secret share \texttt{f\_i(l)} & \texttt{Scalar}\\
+2 & Length \texttt{t} of the commitment vector & \texttt{u16}\\
+512 \(\cdot\) \texttt{t} & Individual commitments \(\phi\)\textsubscript{j} & \texttt{[AffinePoint; t]}\\
+256 & The value \(R\) & \texttt{Scalar}\\
+256 & The value \(\mu\) & \texttt{Scalar}\\
+\end{tabular}
+\end{center}
+
+\subsubsection{Round Two}
+\label{sec:orgc70a22a}
+Broadcast the secret shares \(f(l)\).\\
+
+\noindent
+\textbf{Header}:\\
+\texttt{Message Type = 2}\\
+\texttt{Version = 1}\\
+
+\noindent
+\textbf{Payload}:
+\begin{center}
+\begin{tabular}{rll}
+Bytes & Description & Data Type\\
+\hline
+256 & Secret share \(f(l)\) & \texttt{Scalar}\\
 \end{tabular}
 \end{center}
 
 
 \subsection{Key Generation with Dealer}
-\label{sec:org3e95d94}
+\label{sec:org5b0738a}
+\ldots{}\\
 
-\subsection{Preprocessing}
-\label{sec:org50994f9}
-
-\subsection{Signing}
-\label{sec:orged00f32}
-
-\subsubsection{Round One}
-\label{sec:org955198c}
-Share Signing Commitments
-
+\noindent
 \textbf{Header}:\\
 \texttt{Message Type = 3}\\
-\texttt{Version = 1}
+\texttt{Version = 1}\\
 
-\textbf{Data}:
+\noindent
+\textbf{Payload}:
+\begin{center}
+\begin{tabular}{lll}
+Bytes & Description & Data Type\\
+\hline
+\ldots{} & \ldots{} & \ldots{}\\
+\end{tabular}
+\end{center}
+
+\subsection{Signing}
+\label{sec:orgaecfcfc}
+\ldots{}
+
+\subsubsection{Round One}
+\label{sec:orgbbade2f}
+Share signing commitments.\\
+
+\noindent
+\textbf{Header}:\\
+\texttt{Message Type = 4}\\
+\texttt{Version = 1}\\
+
+\noindent
+\textbf{Payload}:
 \begin{center}
 \begin{tabular}{lll}
 Bytes & Description & Data Type\\
 \hline
 2 & Number of signing commitments \texttt{n} & \texttt{u16}\\
-1024 * \texttt{n} & Signing commitments & \texttt{[SigningCommitment; n]}\\
+1024 \(\cdot\) \texttt{n} & Signing commitments & \texttt{[SigningCommitment; n]}\\
 \end{tabular}
 \end{center}
+
+\subsubsection{Round Two}
+\label{sec:orgea81c2b}
+\ldots{}\\
+
+\noindent
+\textbf{Header}:\\
+\texttt{Message Type = 5}\\
+\texttt{Version = 1}\\
+
+\noindent
+\textbf{Payload}:
+\begin{center}
+\begin{tabular}{lll}
+Bytes & Description & Data Type\\
+\hline
+\ldots{} & \ldots{} & \ldots{}\\
+\end{tabular}
+\end{center}
+
+\section{Data Types}
+\label{sec:org8726550}
+\subsection{\texttt{AffinePoint}}
+\label{sec:org11730a3}
+
+\subsection{\texttt{Scalar}}
+\label{sec:orgcec565f}
+
+\subsection{\texttt{SigningCommitment}}
+\label{sec:orgfb6f0b9}
+
+
+\bibliographystyle{plain}
+\bibliography{refs}
 \end{document}
