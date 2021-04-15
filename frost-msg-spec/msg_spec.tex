@@ -1,4 +1,4 @@
-% Created 2021-04-15 Thu 17:22
+% Created 2021-04-15 Thu 21:55
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -22,7 +22,7 @@
  pdftitle={FROST Messages \& Data Serialization},
  pdfkeywords={},
  pdfsubject={},
- pdfcreator={Emacs 27.1 (Org mode 9.3.8)}, 
+ pdfcreator={Emacs 27.1 (Org mode 9.4.4)}, 
  pdflang={English}}
 \begin{document}
 
@@ -31,13 +31,13 @@
 
 
 \section{Overview}
-\label{sec:org5ade9fe}
+\label{sec:org912bf34}
 The following document describes the byte-level structure of messages sent in
-FROST \cite{frost}. Each message consists of a fixed-sized header followed by the
-actual payload of the message.
+FROST \cite{frost}. Each message consists of a header of fixed size followed by
+the actual payload of the message.
 
 \section{Headers}
-\label{sec:orge6828d4}
+\label{sec:org12fae35}
 All messages have the following header:
 
 \begin{center}
@@ -52,20 +52,20 @@ Bytes & Field Name & Data Type\\
 \end{center}
 
 The \texttt{Message Type} and \texttt{Version} fields specify the payload that follows after
-the header. The sender is uniquely identified by the \texttt{Sender ID} \footnote{TODO: Consider other data types such as \texttt{u32} or \texttt{u64}.\label{orgfc727db}} field
-and the receiver is uniquely identified by the \texttt{Receiver ID} \textsuperscript{\ref{orgfc727db}} field.
+the header. The sender is uniquely identified by the \texttt{Sender ID} \footnote{TODO: Consider other data types such as \texttt{u32} or \texttt{u64}.\label{org68e5745}} field
+and the receiver is uniquely identified by the \texttt{Receiver ID} \textsuperscript{\ref{org68e5745}} field.
 
 \section{Payload types}
-\label{sec:orgd0a1d86}
+\label{sec:org09c501d}
 Messages in FROST are split into three general domains. The following sections
 describe each domain and its messages.
 
 \subsection{Key Generation with DKG}
-\label{sec:orged95a4f}
+\label{sec:org9fbd07e}
 These messages are sent during the Distributed Key Generation (DKG).
 
 \subsubsection{Round One}
-\label{sec:orgcf8e86f}
+\label{sec:orgac6c9e9}
 Broadcast the public commitment vector \(\vec{C} = \langle \phi_0, \ldots,
 \phi_{t-1} \rangle\) and the proof of knowledge \(\sigma = (R, \mu)\). \\
 
@@ -88,7 +88,7 @@ Bytes & Description & Data Type\\
 \end{center}
 
 \subsubsection{Round Two}
-\label{sec:orgb7182fe}
+\label{sec:orgf834e96}
 Broadcast the secret shares \(f(l)\).\\
 
 \noindent
@@ -108,7 +108,7 @@ Bytes & Description & Data Type\\
 
 
 \subsection{Key Generation with Dealer}
-\label{sec:org882e6c2}
+\label{sec:org145cb98}
 \ldots{}\\
 
 \noindent
@@ -127,11 +127,11 @@ Bytes & Description & Data Type\\
 \end{center}
 
 \subsection{Signing}
-\label{sec:orge294b22}
+\label{sec:org4282a73}
 \ldots{}
 
 \subsubsection{Round One}
-\label{sec:orgff6b622}
+\label{sec:org09bc462}
 Share signing commitments.\\
 
 \noindent
@@ -151,7 +151,7 @@ Bytes & Description & Data Type\\
 \end{center}
 
 \subsubsection{Round Two}
-\label{sec:org5af2c88}
+\label{sec:org1f878e5}
 \ldots{}\\
 
 \noindent
@@ -170,15 +170,15 @@ Bytes & Description & Data Type\\
 \end{center}
 
 \section{Data Types}
-\label{sec:org0183d65}
+\label{sec:org4546f1a}
 \subsection{\texttt{AffinePoint}}
-\label{sec:orgc3e9169}
+\label{sec:org5e766fe}
 
 \subsection{\texttt{Scalar}}
-\label{sec:org58ade10}
+\label{sec:orgac14fc4}
 
 \subsection{\texttt{SigningCommitment}}
-\label{sec:org59fad63}
+\label{sec:orge2d2bee}
 
 
 \bibliographystyle{plain}

@@ -6,8 +6,8 @@
 
 * Overview
 The following document describes the byte-level structure of messages sent in
-FROST cite:frost. Each message consists of a fixed-sized header followed by the
-actual payload of the message.
+FROST cite:frost. Each message consists of a header of fixed size followed by
+the actual payload of the message.
 
 * Headers
 All messages have the following header:
