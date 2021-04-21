@@ -54,9 +54,26 @@ fn check_sign_with_dealer() {
     // Check that the threshold signature can be verified by the group public
     // key (aka verification key).
     assert!(pubkeys
-        .group_public
-        .verify(&message, &group_signature)
-        .is_ok());
+            .group_public
+            .verify(&message, &group_signature)
+            .is_ok());
 
     // TODO: also check that the SharePackage.group_public also verifies the group signature.
+}
+
+#[test]
+fn check_serde() {
+    // Generate initial data.
+    let mut rng = thread_rng();
+    let numsigners = 3;
+    let threshold = 2;
+    let (shares, _pubkeys) = frost::keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
+
+    // Check the serialization & deserialization of share packages.
+    for share in shares {
+        let ser_share_package = serde_json::to_string(&share).unwrap();
+        let deser_share_package: frost::SharePackage =
+            serde_json::from_str(&ser_share_package).unwrap();
+        assert!(share == deser_share_package);
+    }
 }
