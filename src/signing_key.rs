@@ -13,7 +13,7 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::{Error, Randomizer, SigType, Signature, SpendAuth, VerificationKey};
+use crate::{error::SignatureError, Randomizer, SigType, Signature, SpendAuth, VerificationKey};
 
 use jubjub::Scalar;
 use rand_core::{CryptoRng, RngCore};
@@ -42,7 +42,7 @@ impl<T: SigType> From<SigningKey<T>> for [u8; 32] {
 }
 
 impl<T: SigType> TryFrom<[u8; 32]> for SigningKey<T> {
-    type Error = Error;
+    type Error = SignatureError;
 
     fn try_from(bytes: [u8; 32]) -> Result<Self, Self::Error> {
         // XXX-jubjub: this should not use CtOption
@@ -52,7 +52,7 @@ impl<T: SigType> TryFrom<[u8; 32]> for SigningKey<T> {
             let pk = VerificationKey::from(&sk);
             Ok(SigningKey { sk, pk })
         } else {
-            Err(Error::MalformedSigningKey)
+            Err(SignatureError::MalformedSigningKey)
         }
     }
 }
@@ -61,7 +61,7 @@ impl<T: SigType> TryFrom<[u8; 32]> for SigningKey<T> {
 struct SerdeHelper([u8; 32]);
 
 impl<T: SigType> TryFrom<SerdeHelper> for SigningKey<T> {
-    type Error = Error;
+    type Error = SignatureError;
 
     fn try_from(helper: SerdeHelper) -> Result<Self, Self::Error> {
         helper.0.try_into()

@@ -30,7 +30,7 @@ pub type Randomizer = jubjub::Scalar;
 
 use hash::HStar;
 
-pub use error::Error;
+pub use error::SignatureError;
 pub use signature::Signature;
 pub use signing_key::SigningKey;
 pub use verification_key::{VerificationKey, VerificationKeyBytes};

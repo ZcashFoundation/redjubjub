@@ -16,7 +16,7 @@ use std::{
 
 use jubjub::Scalar;
 
-use crate::{Error, Randomizer, SigType, Signature, SpendAuth};
+use crate::{error::SignatureError, Randomizer, SigType, Signature, SpendAuth};
 
 /// A refinement type for `[u8; 32]` indicating that the bytes represent
 /// an encoding of a RedJubJub verification key.
@@ -90,7 +90,7 @@ impl<T: SigType> From<VerificationKey<T>> for [u8; 32] {
 }
 
 impl<T: SigType> TryFrom<VerificationKeyBytes<T>> for VerificationKey<T> {
-    type Error = Error;
+    type Error = SignatureError;
 
     fn try_from(bytes: VerificationKeyBytes<T>) -> Result<Self, Self::Error> {
         // XXX-jubjub: this should not use CtOption
@@ -103,16 +103,16 @@ impl<T: SigType> TryFrom<VerificationKeyBytes<T>> for VerificationKey<T> {
             if <bool>::from(point.is_small_order()) == false {
                 Ok(VerificationKey { point, bytes })
             } else {
-                Err(Error::MalformedVerificationKey)
+                Err(SignatureError::MalformedVerificationKey)
             }
         } else {
-            Err(Error::MalformedVerificationKey)
+            Err(SignatureError::MalformedVerificationKey)
         }
     }
 }
 
 impl<T: SigType> TryFrom<[u8; 32]> for VerificationKey<T> {
-    type Error = Error;
+    type Error = SignatureError;
 
     fn try_from(bytes: [u8; 32]) -> Result<Self, Self::Error> {
         use std::convert::TryInto;
@@ -147,7 +147,7 @@ impl<T: SigType> VerificationKey<T> {
 
     /// Verify a purported `signature` over `msg` made by this verification key.
     // This is similar to impl signature::Verifier but without boxed errors
-    pub fn verify(&self, msg: &[u8], signature: &Signature<T>) -> Result<(), Error> {
+    pub fn verify(&self, msg: &[u8], signature: &Signature<T>) -> Result<(), SignatureError> {
         use crate::HStar;
         let c = HStar::default()
             .update(&signature.r_bytes[..])
@@ -163,7 +163,7 @@ impl<T: SigType> VerificationKey<T> {
         &self,
         signature: &Signature<T>,
         c: Scalar,
-    ) -> Result<(), Error> {
+    ) -> Result<(), SignatureError> {
         let r = {
             // XXX-jubjub: should not use CtOption here
             // XXX-jubjub: inconsistent ownership in from_bytes
@@ -171,7 +171,7 @@ impl<T: SigType> VerificationKey<T> {
             if maybe_point.is_some().into() {
                 jubjub::ExtendedPoint::from(maybe_point.unwrap())
             } else {
-                return Err(Error::InvalidSignature);
+                return Err(SignatureError::Invalid);
             }
         };
 
@@ -181,7 +181,7 @@ impl<T: SigType> VerificationKey<T> {
             if maybe_scalar.is_some().into() {
                 maybe_scalar.unwrap()
             } else {
-                return Err(Error::InvalidSignature);
+                return Err(SignatureError::Invalid);
             }
         };
 
@@ -195,7 +195,7 @@ impl<T: SigType> VerificationKey<T> {
         if check.is_small_order().into() {
             Ok(())
         } else {
-            Err(Error::InvalidSignature)
+            Err(SignatureError::Invalid)
         }
     }
 }

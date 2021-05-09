@@ -12,7 +12,7 @@ use thiserror::Error;
 
 /// An error related to RedJubJub signatures.
 #[derive(Error, Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Error {
+pub enum SignatureError {
     /// The encoding of a signing key was malformed.
     #[error("Malformed signing key encoding.")]
     MalformedSigningKey,
@@ -21,5 +21,5 @@ pub enum Error {
     MalformedVerificationKey,
     /// Signature verification failed.
     #[error("Invalid signature.")]
-    InvalidSignature,
+    Invalid,
 }

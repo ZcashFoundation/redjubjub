@@ -111,7 +111,7 @@ impl Item {
     /// borrowing the message data, the `Item` type is unlinked from the lifetime of
     /// the message.
     #[allow(non_snake_case)]
-    pub fn verify_single(self) -> Result<(), Error> {
+    pub fn verify_single(self) -> Result<(), SignatureError> {
         match self.inner {
             Inner::Binding { vk_bytes, sig, c } => VerificationKey::<Binding>::try_from(vk_bytes)
                 .and_then(|vk| vk.verify_prehashed(&sig, c)),
@@ -178,7 +178,7 @@ impl Verifier {
     ///
     /// [ps]: https://zips.z.cash/protocol/protocol.pdf#reddsabatchverify
     #[allow(non_snake_case)]
-    pub fn verify<R: RngCore + CryptoRng>(self, mut rng: R) -> Result<(), Error> {
+    pub fn verify<R: RngCore + CryptoRng>(self, mut rng: R) -> Result<(), SignatureError> {
         let n = self.signatures.len();
 
         let mut VK_coeffs = Vec::with_capacity(n);
@@ -200,7 +200,7 @@ impl Verifier {
                 if maybe_scalar.is_some().into() {
                     maybe_scalar.unwrap()
                 } else {
-                    return Err(Error::InvalidSignature);
+                    return Err(SignatureError::Invalid);
                 }
             };
 
@@ -211,7 +211,7 @@ impl Verifier {
                 if maybe_point.is_some().into() {
                     jubjub::ExtendedPoint::from(maybe_point.unwrap())
                 } else {
-                    return Err(Error::InvalidSignature);
+                    return Err(SignatureError::Invalid);
                 }
             };
 
@@ -258,7 +258,7 @@ impl Verifier {
         if check.is_small_order().into() {
             Ok(())
         } else {
-            Err(Error::InvalidSignature)
+            Err(SignatureError::Invalid)
         }
     }
 }
