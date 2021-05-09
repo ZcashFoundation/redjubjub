@@ -30,7 +30,7 @@ use rand_core::{CryptoRng, RngCore};
 use zeroize::DefaultIsZeroes;
 
 use crate::private::Sealed;
-use crate::{HStar, Signature, SpendAuth, VerificationKey};
+use crate::{error::FrostError, HStar, Signature, SpendAuth, VerificationKey};
 
 /// A secret scalar value representing a single signer's secret key.
 #[derive(Clone, Copy, Default)]
@@ -112,7 +112,7 @@ pub struct SharePackage {
 }
 
 impl TryFrom<SharePackage> for KeyPackage {
-    type Error = &'static str;
+    type Error = FrostError;
 
     /// Tries to verify a share and construct a [`KeyPackage`] from it.
     ///
@@ -122,7 +122,7 @@ impl TryFrom<SharePackage> for KeyPackage {
     /// every participant has the same view of the commitment issued by the
     /// dealer, but implementations *MUST* make sure that all participants have
     /// a consistent view of this commitment in practice.
-    fn try_from(sharepackage: SharePackage) -> Result<Self, &'static str> {
+    fn try_from(sharepackage: SharePackage) -> Result<Self, FrostError> {
         verify_share(&sharepackage.share)?;
 
         Ok(KeyPackage {
@@ -172,7 +172,7 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
     num_signers: u8,
     threshold: u8,
     mut rng: R,
-) -> Result<(Vec<SharePackage>, PublicKeyPackage), &'static str> {
+) -> Result<(Vec<SharePackage>, PublicKeyPackage), FrostError> {
     let mut bytes = [0; 64];
     rng.fill_bytes(&mut bytes);
 
@@ -209,7 +209,7 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
 /// mechanism as all other signing participants. Note that participants *MUST*
 /// ensure that they have the same view as all other participants of the
 /// commitment!
-fn verify_share(share: &Share) -> Result<(), &'static str> {
+fn verify_share(share: &Share) -> Result<(), FrostError> {
     let f_result = SpendAuth::basepoint() * share.value.0;
 
     let x = Scalar::from(share.receiver_index as u64);
@@ -220,7 +220,7 @@ fn verify_share(share: &Share) -> Result<(), &'static str> {
     );
 
     if !(f_result == result) {
-        return Err("Share is invalid.");
+        return Err(FrostError::InvalidShare);
     }
 
     Ok(())
@@ -246,17 +246,17 @@ fn generate_shares<R: RngCore + CryptoRng>(
     numshares: u8,
     threshold: u8,
     mut rng: R,
-) -> Result<Vec<Share>, &'static str> {
+) -> Result<Vec<Share>, FrostError> {
     if threshold < 1 {
-        return Err("Threshold cannot be 0");
+        return Err(FrostError::ZeroThreshold);
     }
 
     if numshares < 1 {
-        return Err("Number of shares cannot be 0");
+        return Err(FrostError::ZeroShares);
     }
 
     if threshold > numshares {
-        return Err("Threshold cannot exceed numshares");
+        return Err(FrostError::ThresholdExceedShares);
     }
 
     let numcoeffs = threshold - 1;
@@ -411,11 +411,11 @@ impl SignatureShare {
         lambda_i: Scalar,
         commitment: jubjub::ExtendedPoint,
         challenge: Scalar,
-    ) -> Result<(), &'static str> {
+    ) -> Result<(), FrostError> {
         if (SpendAuth::basepoint() * self.signature)
             != (commitment + pubkey.0 * challenge * lambda_i)
         {
-            return Err("Invalid signature share");
+            return Err(FrostError::InvalidSignatureShare);
         }
         Ok(())
     }
@@ -481,7 +481,7 @@ fn gen_rho_i(index: u8, signing_package: &SigningPackage) -> Scalar {
 fn gen_group_commitment(
     signing_package: &SigningPackage,
     bindings: &HashMap<u8, Scalar>,
-) -> Result<GroupCommitment, &'static str> {
+) -> Result<GroupCommitment, FrostError> {
     let identity = jubjub::ExtendedPoint::identity();
     let mut accumulator = identity;
 
@@ -489,12 +489,12 @@ fn gen_group_commitment(
         // The following check prevents a party from accidentally revealing their share.
         // Note that the '&&' operator would be sufficient.
         if identity == commitment.binding || identity == commitment.hiding {
-            return Err("Commitment equals the identity.");
+            return Err(FrostError::IdentiyCommitment);
         }
 
         let rho_i = bindings
             .get(&commitment.index)
-            .ok_or("No matching commitment index")?;
+            .ok_or(FrostError::NoMatchCommitment)?;
         accumulator += commitment.hiding + (commitment.binding * rho_i)
     }
 
@@ -520,7 +520,7 @@ fn gen_challenge(
 fn gen_lagrange_coeff(
     signer_index: u8,
     signing_package: &SigningPackage,
-) -> Result<Scalar, &'static str> {
+) -> Result<Scalar, FrostError> {
     let mut num = Scalar::one();
     let mut den = Scalar::one();
     for commitment in signing_package.signing_commitments.iter() {
@@ -532,7 +532,7 @@ fn gen_lagrange_coeff(
     }
 
     if den == Scalar::zero() {
-        return Err("Duplicate shares provided");
+        return Err(FrostError::DuplicateShares);
     }
 
     // TODO: handle this unwrap better like other CtOption's
@@ -553,7 +553,7 @@ pub fn sign(
     signing_package: &SigningPackage,
     participant_nonces: SigningNonces,
     share_package: &SharePackage,
-) -> Result<SignatureShare, &'static str> {
+) -> Result<SignatureShare, FrostError> {
     let mut bindings: HashMap<u8, Scalar> =
         HashMap::with_capacity(signing_package.signing_commitments.len());
 
@@ -574,7 +574,7 @@ pub fn sign(
 
     let participant_rho_i = bindings
         .get(&share_package.index)
-        .ok_or("No matching binding!")?;
+        .ok_or(FrostError::NoMatchBinding)?;
 
     // The Schnorr signature share
     let signature: Scalar = participant_nonces.hiding
@@ -606,7 +606,7 @@ pub fn aggregate(
     signing_package: &SigningPackage,
     signing_shares: &[SignatureShare],
     pubkeys: &PublicKeyPackage,
-) -> Result<Signature<SpendAuth>, &'static str> {
+) -> Result<Signature<SpendAuth>, FrostError> {
     let mut bindings: HashMap<u8, Scalar> =
         HashMap::with_capacity(signing_package.signing_commitments.len());
 
@@ -626,7 +626,7 @@ pub fn aggregate(
             .signing_commitments
             .iter()
             .find(|comm| comm.index == signing_share.index)
-            .ok_or("No matching signing commitment for signer")?;
+            .ok_or(FrostError::NoMatchSigningCommitment)?;
 
         let commitment_i =
             signer_commitment.hiding + (signer_commitment.binding * bindings[&signing_share.index]);
@@ -653,11 +653,11 @@ mod tests {
     use super::*;
     use rand::thread_rng;
 
-    fn reconstruct_secret(shares: Vec<Share>) -> Result<Scalar, &'static str> {
+    fn reconstruct_secret(shares: Vec<Share>) -> Result<Scalar, FrostError> {
         let numshares = shares.len();
 
         if numshares < 1 {
-            return Err("No shares provided");
+            return Err(FrostError::NoShares);
         }
 
         let mut lagrange_coeffs: Vec<Scalar> = Vec::with_capacity(numshares as usize);
@@ -674,7 +674,7 @@ mod tests {
                     - Scalar::from(shares[i].receiver_index as u64);
             }
             if den == Scalar::zero() {
-                return Err("Duplicate shares provided");
+                return Err(FrostError::DuplicateShares);
             }
             lagrange_coeffs.push(num * den.invert().unwrap());
         }
