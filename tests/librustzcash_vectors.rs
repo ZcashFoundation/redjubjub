@@ -9,7 +9,7 @@ use redjubjub::*;
 fn verify_librustzcash_spendauth() {
     for (msg, sig, pk_bytes) in LIBRUSTZCASH_SPENDAUTH_SIGS.iter() {
         assert!(VerificationKey::try_from(*pk_bytes)
-            .and_then(|pk| pk.verify(&msg, &sig))
+            .and_then(|pk| pk.verify(&sig, &msg))
             .is_ok());
     }
 }
@@ -18,7 +18,7 @@ fn verify_librustzcash_spendauth() {
 fn verify_librustzcash_binding() {
     for (msg, sig, pk_bytes) in LIBRUSTZCASH_BINDING_SIGS.iter() {
         assert!(VerificationKey::try_from(*pk_bytes)
-            .and_then(|pk| pk.verify(&msg, &sig))
+            .and_then(|pk| pk.verify(&sig, &msg))
             .is_ok());
     }
 }

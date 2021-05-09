@@ -55,7 +55,7 @@ fn check_sign_with_dealer() {
     // key (aka verification key).
     assert!(pubkeys
         .group_public
-        .verify(&message, &group_signature)
+        .verify(&group_signature, &message)
         .is_ok());
 
     // TODO: also check that the SharePackage.group_public also verifies the group signature.

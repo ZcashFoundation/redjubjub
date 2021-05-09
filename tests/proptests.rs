@@ -64,7 +64,7 @@ impl<T: SigType> SignatureCase<T> {
         // Check that signature validation has the expected result.
         self.is_valid
             == VerificationKey::try_from(pk_bytes)
-                .and_then(|pk| pk.verify(&self.msg, &sig))
+                .and_then(|pk| pk.verify(&sig, &self.msg))
                 .is_ok()
     }
 

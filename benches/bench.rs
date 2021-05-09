@@ -54,11 +54,11 @@ fn bench_batch_verify(c: &mut Criterion) {
                         match item {
                             Item::SpendAuth { vk_bytes, sig } => {
                                 let _ = VerificationKey::try_from(*vk_bytes)
-                                    .and_then(|vk| vk.verify(msg, sig));
+                                    .and_then(|vk| vk.verify(sig, msg));
                             }
                             Item::Binding { vk_bytes, sig } => {
                                 let _ = VerificationKey::try_from(*vk_bytes)
-                                    .and_then(|vk| vk.verify(msg, sig));
+                                    .and_then(|vk| vk.verify(sig, msg));
                             }
                         }
                     }

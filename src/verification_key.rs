@@ -147,7 +147,7 @@ impl<T: SigType> VerificationKey<T> {
 
     /// Verify a purported `signature` over `msg` made by this verification key.
     // This is similar to impl signature::Verifier but without boxed errors
-    pub fn verify(&self, msg: &[u8], signature: &Signature<T>) -> Result<(), Error> {
+    pub fn verify(&self, signature: &Signature<T>, msg: &[u8]) -> Result<(), Error> {
         use crate::HStar;
         let c = HStar::default()
             .update(&signature.r_bytes[..])
