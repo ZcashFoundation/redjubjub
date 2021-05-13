@@ -1,5 +1,8 @@
+//! Definitions of constants.
+
 use super::MsgVersion;
 
+/// The first version of FROST messages
 pub const BASIC_FROST_SERIALIZATION: MsgVersion = MsgVersion(0);
 
 /// The fixed participant ID for the dealer.
