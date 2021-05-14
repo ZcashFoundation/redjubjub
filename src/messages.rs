@@ -3,14 +3,34 @@
 //! [RFC-001]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md
 #![allow(dead_code)]
 
-use jubjub::{AffinePoint, Scalar};
-
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 mod constants;
 mod validate;
 
+/// Define our own `Scalar` type instead of using jubjub::Scalar
+/// This is for serialization/deserialization purposes.
+///
+/// https://github.com/zkcrypto/jubjub/blob/main/src/lib.rs#L60
+/// https://github.com/zkcrypto/jubjub/blob/main/src/fr.rs#L20
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Scalar([u64; 4]);
+
+/// Define our own `AffinePoint` type instead of using jubjub::AffinePoint
+/// This is for serialization/deserialization purposes.
+///
+/// https://github.com/zkcrypto/jubjub/blob/main/src/lib.rs#L70-L73
+/// https://github.com/zkcrypto/jubjub/blob/main/src/lib.rs#L56
+/// https://github.com/zkcrypto/bls12_381/blob/main/src/scalar.rs#L20
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AffinePoint {
+    u: Scalar,
+    v: Scalar,
+}
+
 /// The data required to serialize a frost message.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
     header: Header,
     payload: Payload,
@@ -19,6 +39,7 @@ pub struct Message {
 /// The data required to serialize the common header fields for every message.
 ///
 /// Note: the `msg_type` is derived from the `payload` enum variant.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Header {
     version: MsgVersion,
     sender: ParticipantId,
@@ -26,6 +47,7 @@ pub struct Header {
 }
 
 /// The data required to serialize the payload for a message.
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Payload {
     SharePackage(SharePackage),
     SigningCommitments(SigningCommitments),
@@ -37,6 +59,7 @@ pub enum Payload {
 /// The numeric values used to identify each `Payload` variant during serialization.
 #[repr(u8)]
 #[non_exhaustive]
+#[derive(Serialize, Deserialize, Debug)]
 enum MsgType {
     SharePackage,
     SigningCommitments,
@@ -46,7 +69,7 @@ enum MsgType {
 }
 
 /// The numeric values used to identify the protocol version during serialization.
-#[derive(PartialEq)]
+#[derive(PartialEq, Serialize, Deserialize, Debug)]
 pub struct MsgVersion(u8);
 
 /// The numeric values used to identify each participant during serialization.
@@ -63,7 +86,7 @@ pub struct MsgVersion(u8);
 /// ID `i` will be given a share with value `f(i)`.
 /// Since a DKG may be implemented in the future, we recommend that the ID `0` be declared invalid."
 /// https://raw.githubusercontent.com/ZcashFoundation/redjubjub/main/zcash-frost-audit-report-20210323.pdf#d
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Serialize, Deserialize, Debug)]
 pub enum ParticipantId {
     /// A serialized participant ID for a signer.
     ///
@@ -82,6 +105,7 @@ pub enum ParticipantId {
 /// the `sign()` function.
 ///
 /// Note: `frost::SharePackage.public` can be calculated from `secret_share`.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SharePackage {
     /// This participant's secret key share: `frost::SharePackage.share.value`.
     secret_share: Scalar,
@@ -98,6 +122,7 @@ pub struct SharePackage {
 ///
 /// Each signer must send this message to the aggregator.
 /// A signing commitment from the first round of the signing protocol.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SigningCommitments {
     /// The hiding point: `frost::SigningCommitments.hiding`
     hiding: AffinePoint,
@@ -109,6 +134,7 @@ pub struct SigningCommitments {
 ///
 /// The aggregator decides what message is going to be signed and
 /// sends it to each signer with all the commitments collected.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SigningPackage {
     /// The message to be signed: `frost::SigningPackage.message`
     message: Vec<u8>,
@@ -123,6 +149,7 @@ pub struct SigningPackage {
 ///
 /// Each signer sends their signatures to the aggregator who is going to collect them
 /// and generate a final spend signature.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SignatureShare {
     /// This participant's signature over the message: `frost::SignatureShare.signature`
     signature: Scalar,
@@ -131,6 +158,7 @@ pub struct SignatureShare {
 /// The data required to serialize a successful output from `frost::aggregate()`.
 ///
 /// The final signature is broadcasted by the aggregator to all signers.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AggregateSignature {
     /// The aggregated group commitment: `Signature<SpendAuth>.r_bytes` returned by `frost::aggregate`
     group_commitment: AffinePoint,
