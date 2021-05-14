@@ -17,6 +17,4 @@ pub const AGGREGATOR_PARTICIPANT_ID: u8 = u8::MAX;
 pub const MAX_SIGNER_PARTICIPANT_ID: u8 = u8::MAX - 2;
 
 /// The maximum length of a Zcash message, in bytes.
-///
-/// This value is used to calculate safe preallocation limits for some types
-pub const MAX_PROTOCOL_MESSAGE_LEN: usize = 2 * 1024 * 1024;
+pub const ZCASH_MAX_PROTOCOL_MESSAGE_LEN: usize = 2 * 1024 * 1024;
