@@ -3,7 +3,7 @@
 //! [RFC-001#rules]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md#rules
 
 use super::constants::{
-    BASIC_FROST_SERIALIZATION, MAX_SIGNER_PARTICIPANT_ID, MIN_SIGNERS,
+    BASIC_FROST_SERIALIZATION, MAX_SIGNER_PARTICIPANT_ID, MIN_SIGNERS, MIN_THRESHOLD,
     ZCASH_MAX_PROTOCOL_MESSAGE_LEN,
 };
 use super::*;
@@ -84,7 +84,7 @@ impl Validate for Payload {
         match self {
             Payload::SharePackage(share_package) => {
                 if share_package.share_commitment.len() < MIN_SIGNERS {
-                    return Err(MsgErr::NotEnoughCommitments);
+                    return Err(MsgErr::NotEnoughCommitments(MIN_SIGNERS));
                 }
 
                 if share_package.share_commitment.len() > MAX_SIGNER_PARTICIPANT_ID.into() {
@@ -97,8 +97,8 @@ impl Validate for Payload {
                     return Err(MsgErr::MsgTooBig);
                 }
 
-                if signing_package.signing_commitments.len() < MIN_SIGNERS {
-                    return Err(MsgErr::NotEnoughCommitments);
+                if signing_package.signing_commitments.len() < MIN_THRESHOLD {
+                    return Err(MsgErr::NotEnoughCommitments(MIN_THRESHOLD));
                 }
 
                 if signing_package.signing_commitments.len() > MAX_SIGNER_PARTICIPANT_ID.into() {
@@ -130,8 +130,8 @@ pub enum MsgErr {
     ReceiverMustBeAggergator,
     #[error("the sender of this message must be the aggregator")]
     SenderMustBeAggregator,
-    #[error("the number of signers must be at least {}", MIN_SIGNERS)]
-    NotEnoughCommitments,
+    #[error("the number of signers must be at least {0}")]
+    NotEnoughCommitments(usize),
     #[error(
         "the number of signers can't be more than {}",
         MAX_SIGNER_PARTICIPANT_ID
