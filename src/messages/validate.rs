@@ -2,9 +2,7 @@
 //!
 //! [RFC-001#rules]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md#rules
 
-use super::constants::{
-    BASIC_FROST_SERIALIZATION, MAX_PROTOCOL_MESSAGE_LEN, MAX_SIGNER_PARTICIPANT_ID,
-};
+use super::constants::{BASIC_FROST_SERIALIZATION, ZCASH_MAX_PROTOCOL_MESSAGE_LEN};
 use super::*;
 
 use thiserror::Error;
@@ -81,15 +79,15 @@ impl Validate for Header {
 impl Validate for Payload {
     fn validate(&self) -> Result<&Self, MsgErr> {
         match self {
-            Payload::SharePackage(_) => {},
-            Payload::SigningCommitments(_) => {},
+            Payload::SharePackage(_) => {}
+            Payload::SigningCommitments(_) => {}
             Payload::SigningPackage(signing_package) => {
-                if signing_package.message.len() > MAX_PROTOCOL_MESSAGE_LEN {
+                if signing_package.message.len() > ZCASH_MAX_PROTOCOL_MESSAGE_LEN {
                     return Err(MsgErr::MsgTooBig);
                 }
-            },
-            Payload::SignatureShare(_) => {},
-            Payload::AggregateSignature(_) => {},
+            }
+            Payload::SignatureShare(_) => {}
+            Payload::AggregateSignature(_) => {}
         }
 
         Ok(self)
