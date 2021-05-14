@@ -20,12 +20,12 @@ impl Validate for Message {
                 if self.header.sender != ParticipantId::Dealer {
                     return Err(MsgErr::SenderMustBeDealer);
                 }
-                if self.header.receiver <= ParticipantId::Signer(MAX_SIGNER_PARTICIPANT_ID) {
+                if !matches!(self.header.receiver, ParticipantId::Signer(_)) {
                     return Err(MsgErr::ReceiverMustBeSigner);
                 }
             }
             Payload::SigningCommitments(_) => {
-                if self.header.sender <= ParticipantId::Signer(MAX_SIGNER_PARTICIPANT_ID) {
+                if !matches!(self.header.sender, ParticipantId::Signer(_)) {
                     return Err(MsgErr::SenderMustBeSigner);
                 }
                 if self.header.receiver != ParticipantId::Aggregator {
@@ -36,12 +36,12 @@ impl Validate for Message {
                 if self.header.sender != ParticipantId::Aggregator {
                     return Err(MsgErr::SenderMustBeAggregator);
                 }
-                if self.header.receiver <= ParticipantId::Signer(MAX_SIGNER_PARTICIPANT_ID) {
+                if !matches!(self.header.receiver, ParticipantId::Signer(_)) {
                     return Err(MsgErr::ReceiverMustBeSigner);
                 }
             }
             Payload::SignatureShare(_) => {
-                if self.header.sender <= ParticipantId::Signer(MAX_SIGNER_PARTICIPANT_ID) {
+                if !matches!(self.header.sender, ParticipantId::Signer(_)) {
                     return Err(MsgErr::SenderMustBeSigner);
                 }
                 if self.header.receiver != ParticipantId::Aggregator {
@@ -52,7 +52,7 @@ impl Validate for Message {
                 if self.header.sender != ParticipantId::Aggregator {
                     return Err(MsgErr::SenderMustBeAggregator);
                 }
-                if self.header.receiver <= ParticipantId::Signer(MAX_SIGNER_PARTICIPANT_ID) {
+                if !matches!(self.header.receiver, ParticipantId::Signer(_)) {
                     return Err(MsgErr::ReceiverMustBeSigner);
                 }
             }
