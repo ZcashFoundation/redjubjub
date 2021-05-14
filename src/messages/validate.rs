@@ -2,7 +2,9 @@
 //!
 //! [RFC-001#rules]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md#rules
 
-use super::constants::{BASIC_FROST_SERIALIZATION, ZCASH_MAX_PROTOCOL_MESSAGE_LEN};
+use super::constants::{
+    BASIC_FROST_SERIALIZATION, MAX_SIGNER_PARTICIPANT_ID, ZCASH_MAX_PROTOCOL_MESSAGE_LEN,
+};
 use super::*;
 
 use thiserror::Error;
@@ -79,7 +81,11 @@ impl Validate for Header {
 impl Validate for Payload {
     fn validate(&self) -> Result<&Self, MsgErr> {
         match self {
-            Payload::SharePackage(_) => {}
+            Payload::SharePackage(share_package) => {
+                if share_package.share_commitment.len() > MAX_SIGNER_PARTICIPANT_ID.into() {
+                    return Err(MsgErr::ShareCommitmentTooBig);
+                }
+            }
             Payload::SigningCommitments(_) => {}
             Payload::SigningPackage(signing_package) => {
                 if signing_package.message.len() > ZCASH_MAX_PROTOCOL_MESSAGE_LEN {
@@ -111,6 +117,8 @@ pub enum MsgErr {
     ReceiverMustBeAggergator,
     #[error("the sender of this message must be the aggregator")]
     SenderMustBeAggregator,
-    #[error("the message is too big")]
+    #[error("the share_commitment field is too big")]
+    ShareCommitmentTooBig,
+    #[error("the message field is too big")]
     MsgTooBig,
 }
