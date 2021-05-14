@@ -3,7 +3,8 @@
 //! [RFC-001#rules]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md#rules
 
 use super::constants::{
-    BASIC_FROST_SERIALIZATION, MAX_SIGNER_PARTICIPANT_ID, ZCASH_MAX_PROTOCOL_MESSAGE_LEN,
+    BASIC_FROST_SERIALIZATION, MAX_SIGNER_PARTICIPANT_ID, MIN_SIGNERS,
+    ZCASH_MAX_PROTOCOL_MESSAGE_LEN,
 };
 use super::*;
 
@@ -82,14 +83,26 @@ impl Validate for Payload {
     fn validate(&self) -> Result<&Self, MsgErr> {
         match self {
             Payload::SharePackage(share_package) => {
+                if share_package.share_commitment.len() < MIN_SIGNERS {
+                    return Err(MsgErr::NotEnoughCommitments);
+                }
+
                 if share_package.share_commitment.len() > MAX_SIGNER_PARTICIPANT_ID.into() {
-                    return Err(MsgErr::ShareCommitmentTooBig);
+                    return Err(MsgErr::TooManyCommitments);
                 }
             }
             Payload::SigningCommitments(_) => {}
             Payload::SigningPackage(signing_package) => {
                 if signing_package.message.len() > ZCASH_MAX_PROTOCOL_MESSAGE_LEN {
                     return Err(MsgErr::MsgTooBig);
+                }
+
+                if signing_package.signing_commitments.len() < MIN_SIGNERS {
+                    return Err(MsgErr::NotEnoughCommitments);
+                }
+
+                if signing_package.signing_commitments.len() > MAX_SIGNER_PARTICIPANT_ID.into() {
+                    return Err(MsgErr::TooManyCommitments);
                 }
             }
             Payload::SignatureShare(_) => {}
@@ -117,8 +130,16 @@ pub enum MsgErr {
     ReceiverMustBeAggergator,
     #[error("the sender of this message must be the aggregator")]
     SenderMustBeAggregator,
-    #[error("the share_commitment field is too big")]
-    ShareCommitmentTooBig,
-    #[error("the message field is too big")]
+    #[error("the number of signers must be at least {}", MIN_SIGNERS)]
+    NotEnoughCommitments,
+    #[error(
+        "the number of signers can't be more than {}",
+        MAX_SIGNER_PARTICIPANT_ID
+    )]
+    TooManyCommitments,
+    #[error(
+        "the message field can't be bigger than {}",
+        ZCASH_MAX_PROTOCOL_MESSAGE_LEN
+    )]
     MsgTooBig,
 }

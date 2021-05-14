@@ -18,3 +18,9 @@ pub const MAX_SIGNER_PARTICIPANT_ID: u8 = u8::MAX - 2;
 
 /// The maximum length of a Zcash message, in bytes.
 pub const ZCASH_MAX_PROTOCOL_MESSAGE_LEN: usize = 2 * 1024 * 1024;
+
+/// The minimum number of signers of any FROST setup.
+pub const MIN_SIGNERS: usize = 2;
+
+/// The minimum number of signers that must sign.
+pub const MIN_THRESHOLD: usize = 2;
