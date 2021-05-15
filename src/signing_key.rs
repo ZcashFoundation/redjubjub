@@ -114,7 +114,9 @@ impl<T: SigType> SigningKey<T> {
             .update(msg)
             .finalize();
 
-        let r_bytes = jubjub::AffinePoint::from(&T::basepoint() * &nonce).to_bytes();
+        let r_bytes =
+            jubjub::AffinePoint::from(&T::basepoint().expect("A valid basepoint") * &nonce)
+                .to_bytes();
 
         let c = HStar::default()
             .update(&r_bytes[..])

@@ -126,7 +126,8 @@ impl VerificationKey<SpendAuth> {
     /// Randomization is only supported for `SpendAuth` keys.
     pub fn randomize(&self, randomizer: &Randomizer) -> VerificationKey<SpendAuth> {
         use crate::private::Sealed;
-        let point = &self.point + &(&SpendAuth::basepoint() * randomizer);
+        let point = &self.point
+            + &(&SpendAuth::basepoint().expect("A valid SpendAuth basepoint") * randomizer);
         let bytes = VerificationKeyBytes {
             bytes: jubjub::AffinePoint::from(&point).to_bytes(),
             _marker: PhantomData,
@@ -137,7 +138,7 @@ impl VerificationKey<SpendAuth> {
 
 impl<T: SigType> VerificationKey<T> {
     pub(crate) fn from(s: &Scalar) -> VerificationKey<T> {
-        let point = &T::basepoint() * s;
+        let point = &T::basepoint().expect("A valid basepoint") * s;
         let bytes = VerificationKeyBytes {
             bytes: jubjub::AffinePoint::from(&point).to_bytes(),
             _marker: PhantomData,
@@ -188,7 +189,7 @@ impl<T: SigType> VerificationKey<T> {
         // XXX rewrite as normal double scalar mul
         // Verify check is h * ( - s * B + R  + c * A) == 0
         //                 h * ( s * B - c * A - R) == 0
-        let sB = &T::basepoint() * &s;
+        let sB = &T::basepoint().expect("A valid basepoint") * &s;
         let cA = &self.point * &c;
         let check = sB - cA - r;
 

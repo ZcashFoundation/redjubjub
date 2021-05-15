@@ -62,20 +62,30 @@ impl SigType for SpendAuth {}
 pub(crate) mod private {
     use super::*;
     pub trait Sealed: Copy + Clone + Eq + PartialEq + std::fmt::Debug {
-        fn basepoint() -> jubjub::ExtendedPoint;
+        fn basepoint() -> Result<jubjub::ExtendedPoint, &'static str>;
     }
     impl Sealed for Binding {
-        fn basepoint() -> jubjub::ExtendedPoint {
-            jubjub::AffinePoint::from_bytes(constants::BINDINGSIG_BASEPOINT_BYTES)
-                .unwrap()
-                .into()
+        fn basepoint() -> Result<jubjub::ExtendedPoint, &'static str> {
+            // XXX-jubjub: should not use CtOption here
+            let maybe_affine_point =
+                jubjub::AffinePoint::from_bytes(constants::BINDINGSIG_BASEPOINT_BYTES);
+            if maybe_affine_point.is_some().into() {
+                Ok(maybe_affine_point.unwrap().into())
+            } else {
+                return Err("Element not in the curve or non canonical");
+            }
         }
     }
     impl Sealed for SpendAuth {
-        fn basepoint() -> jubjub::ExtendedPoint {
-            jubjub::AffinePoint::from_bytes(constants::SPENDAUTHSIG_BASEPOINT_BYTES)
-                .unwrap()
-                .into()
+        fn basepoint() -> Result<jubjub::ExtendedPoint, &'static str> {
+            // XXX-jubjub: should not use CtOption here
+            let maybe_affine_point =
+                jubjub::AffinePoint::from_bytes(constants::SPENDAUTHSIG_BASEPOINT_BYTES);
+            if maybe_affine_point.is_some().into() {
+                Ok(maybe_affine_point.unwrap().into())
+            } else {
+                return Err("Element not in the curve or non canonical");
+            }
         }
     }
 }
