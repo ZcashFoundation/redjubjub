@@ -21,7 +21,7 @@ pub struct Scalar([u8; 32]);
 /// The serialization design specifies that `AffinePoint` uses:
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AffinePoint([u8; 32])
+pub struct AffinePoint([u8; 32]);
 
 /// The data required to serialize a frost message.
 #[derive(Serialize, Deserialize, Debug)]
