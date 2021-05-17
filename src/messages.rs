@@ -5,6 +5,8 @@
 
 use jubjub::{AffinePoint, Scalar};
 
+use crate::{verification_key::VerificationKey, SpendAuth};
+
 use std::collections::HashMap;
 
 mod constants;
@@ -91,7 +93,7 @@ pub struct SharePackage {
     share_commitment: Vec<AffinePoint>,
     /// The public signing key that represents the entire group:
     /// `frost::SharePackage.group_public`.
-    group_public: AffinePoint,
+    group_public: VerificationKey<SpendAuth>,
 }
 
 /// The data required to serialize `frost::SigningCommitments`.
