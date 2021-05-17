@@ -62,29 +62,29 @@ impl SigType for SpendAuth {}
 pub(crate) mod private {
     use super::*;
     pub trait Sealed: Copy + Clone + Eq + PartialEq + std::fmt::Debug {
-        fn basepoint() -> Result<jubjub::ExtendedPoint, &'static str>;
+        fn basepoint() -> jubjub::ExtendedPoint;
     }
     impl Sealed for Binding {
-        fn basepoint() -> Result<jubjub::ExtendedPoint, &'static str> {
+        fn basepoint() -> jubjub::ExtendedPoint {
             // XXX-jubjub: should not use CtOption here
             let maybe_affine_point =
                 jubjub::AffinePoint::from_bytes(constants::BINDINGSIG_BASEPOINT_BYTES);
             if maybe_affine_point.is_some().into() {
-                Ok(maybe_affine_point.unwrap().into())
+                maybe_affine_point.unwrap().into()
             } else {
-                return Err("Element not in the curve or non canonical");
+                panic!("Invalid basepoint: Element not in the curve or non canonical");
             }
         }
     }
     impl Sealed for SpendAuth {
-        fn basepoint() -> Result<jubjub::ExtendedPoint, &'static str> {
+        fn basepoint() -> jubjub::ExtendedPoint {
             // XXX-jubjub: should not use CtOption here
             let maybe_affine_point =
                 jubjub::AffinePoint::from_bytes(constants::SPENDAUTHSIG_BASEPOINT_BYTES);
             if maybe_affine_point.is_some().into() {
-                Ok(maybe_affine_point.unwrap().into())
+                maybe_affine_point.unwrap().into()
             } else {
-                return Err("Element not in the curve or non canonical");
+                panic!("Invalid basepoint: Element not in the curve or non canonical");
             }
         }
     }

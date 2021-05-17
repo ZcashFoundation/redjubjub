@@ -250,10 +250,7 @@ impl Verifier {
             .chain(VK_coeffs.iter())
             .chain(R_coeffs.iter());
 
-        let basepoints = [
-            SpendAuth::basepoint().expect("A valid SpendAuth basepoint"),
-            Binding::basepoint().expect("A valid Binding basepoint"),
-        ];
+        let basepoints = [SpendAuth::basepoint(), Binding::basepoint()];
         let points = basepoints.iter().chain(VKs.iter()).chain(Rs.iter());
 
         let check = ExtendedPoint::vartime_multiscalar_mul(scalars, points);

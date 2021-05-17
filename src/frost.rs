@@ -183,7 +183,7 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
     let mut signer_pubkeys: HashMap<u8, Public> = HashMap::with_capacity(num_signers as usize);
 
     for share in shares {
-        let signer_public = Public(SpendAuth::basepoint()? * share.value.0);
+        let signer_public = Public(SpendAuth::basepoint() * share.value.0);
         sharepackages.push(SharePackage {
             index: share.receiver_index,
             share: share.clone(),
@@ -210,7 +210,7 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
 /// ensure that they have the same view as all other participants of the
 /// commitment!
 fn verify_share(share: &Share) -> Result<(), &'static str> {
-    let f_result = SpendAuth::basepoint()? * share.value.0;
+    let f_result = SpendAuth::basepoint() * share.value.0;
 
     let x = Scalar::from(share.receiver_index as u64);
 
@@ -277,10 +277,10 @@ fn generate_shares<R: RngCore + CryptoRng>(
     // with every other participant's.
     commitment
         .0
-        .push(Commitment(SpendAuth::basepoint()? * secret.0));
+        .push(Commitment(SpendAuth::basepoint() * secret.0));
 
     for c in &coefficients {
-        commitment.0.push(Commitment(SpendAuth::basepoint()? * c));
+        commitment.0.push(Commitment(SpendAuth::basepoint() * c));
     }
 
     // Evaluate the polynomial with `secret` as the constant term
@@ -370,8 +370,8 @@ impl From<(u8, &SigningNonces)> for SigningCommitments {
     fn from((index, nonces): (u8, &SigningNonces)) -> Self {
         Self {
             index,
-            hiding: SpendAuth::basepoint().expect("A valid SpendAuth basepoint") * nonces.hiding,
-            binding: SpendAuth::basepoint().expect("A valid SpendAuth basepoint") * nonces.binding,
+            hiding: SpendAuth::basepoint() * nonces.hiding,
+            binding: SpendAuth::basepoint() * nonces.binding,
         }
     }
 }
@@ -412,7 +412,7 @@ impl SignatureShare {
         commitment: jubjub::ExtendedPoint,
         challenge: Scalar,
     ) -> Result<(), &'static str> {
-        if (SpendAuth::basepoint()? * self.signature)
+        if (SpendAuth::basepoint() * self.signature)
             != (commitment + pubkey.0 * challenge * lambda_i)
         {
             return Err("Invalid signature share");
@@ -702,7 +702,7 @@ mod tests {
         rng.fill_bytes(&mut bytes);
         let secret = Secret(Scalar::from_bytes_wide(&bytes));
 
-        let _ = SpendAuth::basepoint().expect("A valid SpendAuth basepoint") * secret.0;
+        let _ = SpendAuth::basepoint() * secret.0;
 
         let shares = generate_shares(&secret, 5, 3, rng).unwrap();
 
