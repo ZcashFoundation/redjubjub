@@ -9,25 +9,19 @@ use std::collections::HashMap;
 mod constants;
 mod validate;
 
-/// Define our own `Scalar` type instead of using jubjub::Scalar
-/// This is for serialization/deserialization purposes.
+/// Define our own `Scalar` type instead of using `jubjub::Scalar`.
 ///
-/// https://github.com/zkcrypto/jubjub/blob/main/src/lib.rs#L60
-/// https://github.com/zkcrypto/jubjub/blob/main/src/fr.rs#L20
+/// The serialization design specifies that `Scalar` uses:
+/// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Scalar([u64; 4]);
+pub struct Scalar([u8; 32]);
 
-/// Define our own `AffinePoint` type instead of using jubjub::AffinePoint
-/// This is for serialization/deserialization purposes.
+/// Define our own `AffinePoint` type instead of using `jubjub::AffinePoint`.
 ///
-/// https://github.com/zkcrypto/jubjub/blob/main/src/lib.rs#L70-L73
-/// https://github.com/zkcrypto/jubjub/blob/main/src/lib.rs#L56
-/// https://github.com/zkcrypto/bls12_381/blob/main/src/scalar.rs#L20
+/// The serialization design specifies that `AffinePoint` uses:
+/// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AffinePoint {
-    u: Scalar,
-    v: Scalar,
-}
+pub struct AffinePoint([u8; 32])
 
 /// The data required to serialize a frost message.
 #[derive(Serialize, Deserialize, Debug)]
