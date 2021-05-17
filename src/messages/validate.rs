@@ -3,7 +3,7 @@
 //! [RFC-001#rules]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md#rules
 
 use super::constants::{
-    BASIC_FROST_SERIALIZATION, MAX_SIGNER_PARTICIPANT_ID, MIN_SIGNERS, MIN_THRESHOLD,
+    BASIC_FROST_SERIALIZATION, MAX_SIGNERS, MIN_SIGNERS, MIN_THRESHOLD,
     ZCASH_MAX_PROTOCOL_MESSAGE_LEN,
 };
 use super::*;
@@ -87,7 +87,7 @@ impl Validate for Payload {
                     return Err(MsgErr::NotEnoughCommitments(MIN_SIGNERS));
                 }
 
-                if share_package.share_commitment.len() > MAX_SIGNER_PARTICIPANT_ID.into() {
+                if share_package.share_commitment.len() > MAX_SIGNERS.into() {
                     return Err(MsgErr::TooManyCommitments);
                 }
             }
@@ -101,7 +101,7 @@ impl Validate for Payload {
                     return Err(MsgErr::NotEnoughCommitments(MIN_THRESHOLD));
                 }
 
-                if signing_package.signing_commitments.len() > MAX_SIGNER_PARTICIPANT_ID.into() {
+                if signing_package.signing_commitments.len() > MAX_SIGNERS.into() {
                     return Err(MsgErr::TooManyCommitments);
                 }
             }
@@ -132,10 +132,7 @@ pub enum MsgErr {
     SenderMustBeAggregator,
     #[error("the number of signers must be at least {0}")]
     NotEnoughCommitments(usize),
-    #[error(
-        "the number of signers can't be more than {}",
-        MAX_SIGNER_PARTICIPANT_ID
-    )]
+    #[error("the number of signers can't be more than {}", MAX_SIGNERS)]
     TooManyCommitments,
     #[error(
         "the message field can't be bigger than {}",
