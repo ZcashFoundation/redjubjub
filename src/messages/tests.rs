@@ -265,3 +265,146 @@ fn serialize_signingcommitments() {
     let deserialized: Message = serde_json::from_str(serialized.as_str()).unwrap();
     assert_eq!(message, deserialized);
 }
+
+#[test]
+fn validate_signingpackage() {
+    let mut rng = thread_rng();
+    let signer1 = ParticipantId::Signer(0);
+    let signer2 = ParticipantId::Signer(1);
+    let signer1_id = 0u8;
+    let signer2_id = 1u8;
+    let aggregator = ParticipantId::Aggregator;
+    let dealer = ParticipantId::Dealer;
+
+    let (_nonce, commitment1) = frost::preprocess(1, signer1_id, &mut rng);
+    let (_nonce, commitment2) = frost::preprocess(1, signer2_id, &mut rng);
+
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: signer1.clone(),
+        receiver: signer2.clone(),
+    };
+
+    let signing_commitment1 = SigningCommitments {
+        hiding: AffinePoint::from(commitment1[0].hiding),
+        binding: AffinePoint::from(commitment1[0].binding),
+    };
+    let signing_commitment2 = SigningCommitments {
+        hiding: AffinePoint::from(commitment2[0].hiding),
+        binding: AffinePoint::from(commitment2[0].binding),
+    };
+
+    let mut signing_commitments = HashMap::<ParticipantId, SigningCommitments>::new();
+    signing_commitments.insert(signer1.clone(), signing_commitment1.clone());
+
+    // try with only 1 commitment
+    let payload = Payload::SigningPackage(SigningPackage {
+        message: "hola".as_bytes().to_vec(),
+        signing_commitments: signing_commitments.clone(),
+    });
+    let validate_payload = Validate::validate(&payload).err().expect("an error");
+    assert_eq!(
+        validate_payload,
+        MsgErr::NotEnoughCommitments(constants::MIN_SIGNERS)
+    );
+
+    // add too many commitments
+    let mut big_signing_commitments = HashMap::<ParticipantId, SigningCommitments>::new();
+    for i in 0..constants::MAX_SIGNERS + 1 {
+        big_signing_commitments.insert(ParticipantId::Signer(i), signing_commitment1.clone());
+    }
+    let payload = Payload::SigningPackage(SigningPackage {
+        message: "hola".as_bytes().to_vec(),
+        signing_commitments: big_signing_commitments,
+    });
+    let validate_payload = Validate::validate(&payload).err().expect("an error");
+    assert_eq!(validate_payload, MsgErr::TooManyCommitments);
+
+    // add the other valid commitment
+    signing_commitments.insert(signer2.clone(), signing_commitment2);
+
+    let big_message = [0u8; constants::ZCASH_MAX_PROTOCOL_MESSAGE_LEN + 1].to_vec();
+    let payload = Payload::SigningPackage(SigningPackage {
+        message: big_message,
+        signing_commitments,
+    });
+    let validate_payload = Validate::validate(&payload).err().expect("an error");
+    assert_eq!(validate_payload, MsgErr::MsgTooBig);
+
+    let validate_message = Validate::validate(&Message {
+        header,
+        payload: payload.clone(),
+    })
+    .err()
+    .expect("an error");
+    assert_eq!(validate_message, MsgErr::SenderMustBeAggregator);
+
+    // change header
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: aggregator.clone(),
+        receiver: dealer.clone(),
+    };
+    let validate_message = Validate::validate(&Message {
+        header: header.clone(),
+        payload: payload.clone(),
+    })
+    .err()
+    .expect("an error");
+    assert_eq!(validate_message, MsgErr::ReceiverMustBeSigner);
+
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: aggregator.clone(),
+        receiver: signer1.clone(),
+    };
+
+    let validate_message = Validate::validate(&Message { header, payload }).err();
+    assert_eq!(validate_message, None);
+}
+
+#[test]
+fn serialize_signingpackage() {
+    let mut rng = thread_rng();
+    let signer1 = ParticipantId::Signer(0);
+    let signer2 = ParticipantId::Signer(1);
+    let signer1_id = 0u8;
+    let signer2_id = 1u8;
+    let aggregator = ParticipantId::Aggregator;
+
+    let (_nonce, commitment1) = frost::preprocess(1, signer1_id, &mut rng);
+    let (_nonce, commitment2) = frost::preprocess(1, signer2_id, &mut rng);
+
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: aggregator.clone(),
+        receiver: signer1.clone(),
+    };
+
+    let signing_commitment1 = SigningCommitments {
+        hiding: AffinePoint::from(commitment1[0].hiding),
+        binding: AffinePoint::from(commitment1[0].binding),
+    };
+    let signing_commitment2 = SigningCommitments {
+        hiding: AffinePoint::from(commitment2[0].hiding),
+        binding: AffinePoint::from(commitment2[0].binding),
+    };
+
+    let mut signing_commitments = HashMap::<ParticipantId, SigningCommitments>::new();
+    signing_commitments.insert(signer1.clone(), signing_commitment1.clone());
+    signing_commitments.insert(signer2.clone(), signing_commitment2.clone());
+
+    let payload = Payload::SigningPackage(SigningPackage {
+        message: "hola".as_bytes().to_vec(),
+        signing_commitments: signing_commitments.clone(),
+    });
+
+    let message = Message {
+        header,
+        payload: payload.clone(),
+    };
+
+    let serialized = serde_json::to_string(&message).unwrap();
+    let deserialized: Message = serde_json::from_str(serialized.as_str()).unwrap();
+    assert_eq!(message, deserialized);
+}
