@@ -114,7 +114,7 @@ impl Validate for Payload {
 }
 
 /// The error a message can produce if it fails validation.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum MsgErr {
     #[error("wrong version number")]
     WrongVersion,

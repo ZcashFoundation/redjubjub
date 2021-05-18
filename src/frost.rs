@@ -34,7 +34,7 @@ use crate::{HStar, Signature, SpendAuth, VerificationKey};
 
 /// A secret scalar value representing a single signer's secret key.
 #[derive(Clone, Copy, Default)]
-pub struct Secret(Scalar);
+pub struct Secret(pub Scalar);
 
 // Zeroizes `Secret` to be the `Default` value on drop (when it goes out of
 // scope).  Luckily the derived `Default` includes the `Default` impl of
@@ -63,8 +63,10 @@ impl From<jubjub::ExtendedPoint> for Public {
 #[derive(Clone)]
 pub struct Share {
     receiver_index: u8,
-    value: Secret,
-    commitment: ShareCommitment,
+    /// Secret Key.
+    pub value: Secret,
+    /// The commitments to be distributed among signers.
+    pub commitment: ShareCommitment,
 }
 
 /// A Jubjub point that is a commitment to one coefficient of our secret
@@ -73,7 +75,7 @@ pub struct Share {
 /// This is a (public) commitment to one coefficient of a secret polynomial used
 /// for performing verifiable secret sharing for a Shamir secret share.
 #[derive(Clone)]
-struct Commitment(jubjub::ExtendedPoint);
+pub struct Commitment(pub jubjub::ExtendedPoint);
 
 /// Contains the commitments to the coefficients for our secret polynomial _f_,
 /// used to generate participants' key shares.
@@ -88,7 +90,7 @@ struct Commitment(jubjub::ExtendedPoint);
 /// some agreed-upon public location for publication, where each participant can
 /// ensure that they received the correct (and same) value.
 #[derive(Clone)]
-pub struct ShareCommitment(Vec<Commitment>);
+pub struct ShareCommitment(pub Vec<Commitment>);
 
 /// The product of all signers' individual commitments, published as part of the
 /// final signature.
