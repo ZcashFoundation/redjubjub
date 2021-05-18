@@ -40,6 +40,12 @@ impl From<frost::Commitment> for AffinePoint {
     }
 }
 
+impl From<jubjub::ExtendedPoint> for AffinePoint {
+    fn from(value: jubjub::ExtendedPoint) -> AffinePoint {
+        AffinePoint(jubjub::AffinePoint::from(value).to_bytes())
+    }
+}
+
 /// The data required to serialize a frost message.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Message {

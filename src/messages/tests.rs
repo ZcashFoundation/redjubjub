@@ -178,3 +178,90 @@ fn serialize_sharepackage() {
     let deserialized: Message = serde_json::from_str(serialized.as_str()).unwrap();
     assert_eq!(message, deserialized);
 }
+
+#[test]
+fn validate_signingcommitments() {
+    let mut rng = thread_rng();
+    let signer1 = ParticipantId::Signer(0);
+    let signer2 = ParticipantId::Signer(1);
+    let signer1_id = 0u8;
+    let aggregator = ParticipantId::Aggregator;
+
+    let (_nonce, commitment) = frost::preprocess(1, signer1_id, &mut rng);
+
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: aggregator.clone(),
+        receiver: signer2.clone(),
+    };
+
+    let payload = Payload::SigningCommitments(SigningCommitments {
+        hiding: AffinePoint::from(commitment[0].hiding),
+        binding: AffinePoint::from(commitment[0].binding),
+    });
+
+    let validate_message = Validate::validate(&Message {
+        header,
+        payload: payload.clone(),
+    })
+    .err()
+    .expect("an error");
+    assert_eq!(validate_message, MsgErr::SenderMustBeSigner);
+
+    // change the header
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: signer1.clone(),
+        receiver: signer2.clone(),
+    };
+
+    let validate_message = Validate::validate(&Message {
+        header,
+        payload: payload.clone(),
+    })
+    .err()
+    .expect("an error");
+    assert_eq!(validate_message, MsgErr::ReceiverMustBeAggergator);
+
+    // change the header to valid
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: signer1.clone(),
+        receiver: aggregator.clone(),
+    };
+
+    let validate_message = Validate::validate(&Message { header, payload }).err();
+
+    assert_eq!(validate_message, None);
+}
+
+#[test]
+fn serialize_signingcommitments() {
+    let mut rng = thread_rng();
+
+    let signer1 = ParticipantId::Signer(0);
+    let signer1_id = 0u8;
+    let aggregator = ParticipantId::Aggregator;
+
+    let (_nonce, commitment) = frost::preprocess(1, signer1_id, &mut rng);
+
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: aggregator.clone(),
+        receiver: signer1.clone(),
+    };
+
+    let payload = Payload::SigningCommitments(SigningCommitments {
+        hiding: AffinePoint::from(commitment[0].hiding),
+        binding: AffinePoint::from(commitment[0].binding),
+    });
+
+    let message = Message {
+        header,
+        payload: payload.clone(),
+    };
+
+    let serialized = serde_json::to_string(&message).unwrap();
+    let deserialized: Message = serde_json::from_str(serialized.as_str()).unwrap();
+    assert_eq!(message, deserialized);
+}

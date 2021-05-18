@@ -363,8 +363,10 @@ impl SigningNonces {
 #[derive(Copy, Clone)]
 pub struct SigningCommitments {
     index: u8,
-    hiding: jubjub::ExtendedPoint,
-    binding: jubjub::ExtendedPoint,
+    /// The hiding point.
+    pub hiding: jubjub::ExtendedPoint,
+    /// The binding point.
+    pub binding: jubjub::ExtendedPoint,
 }
 
 impl From<(u8, &SigningNonces)> for SigningCommitments {
