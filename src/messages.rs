@@ -10,6 +10,7 @@ use crate::{frost, verification_key::VerificationKey, SpendAuth};
 use std::collections::HashMap;
 
 mod constants;
+mod serialize;
 #[cfg(test)]
 mod tests;
 mod validate;
@@ -103,7 +104,7 @@ pub struct MsgVersion(u8);
 /// ID `i` will be given a share with value `f(i)`.
 /// Since a DKG may be implemented in the future, we recommend that the ID `0` be declared invalid."
 /// https://raw.githubusercontent.com/ZcashFoundation/redjubjub/main/zcash-frost-audit-report-20210323.pdf#d
-#[derive(PartialEq, Eq, Hash, PartialOrd, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Debug, Clone)]
 pub enum ParticipantId {
     /// A serialized participant ID for a signer.
     ///
