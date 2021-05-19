@@ -124,15 +124,15 @@ pub enum ParticipantId {
 /// Note: `frost::SharePackage.public` can be calculated from `secret_share`.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct SharePackage {
+    /// The public signing key that represents the entire group:
+    /// `frost::SharePackage.group_public`.
+    group_public: VerificationKey<SpendAuth>,
     /// This participant's secret key share: `frost::SharePackage.share.value`.
     secret_share: Scalar,
     /// Commitment for the signer as a single jubjub::AffinePoint.
     /// A set of commitments to the coefficients (which themselves are scalars)
     /// for a secret polynomial _f_: `frost::SharePackage.share.commitment`
     share_commitment: Vec<AffinePoint>,
-    /// The public signing key that represents the entire group:
-    /// `frost::SharePackage.group_public`.
-    group_public: VerificationKey<SpendAuth>,
 }
 
 /// The data required to serialize `frost::SigningCommitments`.
@@ -153,13 +153,15 @@ pub struct SigningCommitments {
 /// sends it to each signer with all the commitments collected.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct SigningPackage {
-    /// The message to be signed: `frost::SigningPackage.message`
-    message: Vec<u8>,
     /// The collected commitments for each signer as a hashmap of
     /// unique participant identifiers: `frost::SigningPackage.signing_commitments`
     ///
     /// Signing packages that contain duplicate or missing `ParticipantID`s are invalid.
     signing_commitments: HashMap<ParticipantId, SigningCommitments>,
+    /// The message to be signed: `frost::SigningPackage.message`.
+    ///
+    /// Each signer should perform protocol-specific verification on the message.
+    message: Vec<u8>,
 }
 
 /// The data required to serialize `frost::SignatureShare`.
