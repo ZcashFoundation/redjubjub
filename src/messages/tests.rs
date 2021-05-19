@@ -72,6 +72,7 @@ fn validate_sharepackage() {
     let validate_header = Validate::validate(&header);
     let valid_header = validate_header.expect("a valid header").clone();
 
+    let group_public = VerificationKey::try_from(shares[0].group_public.bytes).unwrap();
     let secret_share = Scalar::from(shares[0].share.value.0);
     let mut share_commitment: Vec<AffinePoint> = shares[0]
         .share
@@ -80,12 +81,11 @@ fn validate_sharepackage() {
         .iter()
         .map(|c| AffinePoint::from(c.clone()))
         .collect();
-    let group_public = VerificationKey::try_from(shares[0].group_public.bytes).unwrap();
 
     let payload = Payload::SharePackage(SharePackage {
+        group_public,
         secret_share,
         share_commitment: share_commitment.clone(),
-        group_public,
     });
     let validate_payload = Validate::validate(&payload);
     let valid_payload = validate_payload.expect("a valid payload").clone();
@@ -117,9 +117,9 @@ fn validate_sharepackage() {
 
     //
     let payload = Payload::SharePackage(SharePackage {
+        group_public,
         secret_share,
         share_commitment: share_commitment[0..1].to_vec(),
-        group_public,
     });
     let validate_payload = Validate::validate(&payload).err().expect("an error");
     assert_eq!(
@@ -129,9 +129,9 @@ fn validate_sharepackage() {
 
     share_commitment.resize((constants::MAX_SIGNERS + 1).into(), share_commitment[0]);
     let payload = Payload::SharePackage(SharePackage {
+        group_public,
         secret_share,
         share_commitment,
-        group_public,
     });
     let validate_payload = Validate::validate(&payload).err().expect("an error");
     assert_eq!(validate_payload, MsgErr::TooManyCommitments);
@@ -153,6 +153,7 @@ fn serialize_sharepackage() {
         receiver: signer1.clone(),
     };
 
+    let group_public = VerificationKey::try_from(shares[0].group_public.bytes).unwrap();
     let secret_share = Scalar::from(shares[0].share.value.0);
     let share_commitment: Vec<AffinePoint> = shares[0]
         .share
@@ -161,12 +162,11 @@ fn serialize_sharepackage() {
         .iter()
         .map(|c| AffinePoint::from(c.clone()))
         .collect();
-    let group_public = VerificationKey::try_from(shares[0].group_public.bytes).unwrap();
 
     let payload = Payload::SharePackage(SharePackage {
+        group_public,
         secret_share,
         share_commitment: share_commitment.clone(),
-        group_public,
     });
 
     let message = Message {
@@ -299,8 +299,8 @@ fn validate_signingpackage() {
 
     // try with only 1 commitment
     let payload = Payload::SigningPackage(SigningPackage {
-        message: "hola".as_bytes().to_vec(),
         signing_commitments: signing_commitments.clone(),
+        message: "hola".as_bytes().to_vec(),
     });
     let validate_payload = Validate::validate(&payload).err().expect("an error");
     assert_eq!(
@@ -314,8 +314,8 @@ fn validate_signingpackage() {
         big_signing_commitments.insert(ParticipantId::Signer(i), signing_commitment1.clone());
     }
     let payload = Payload::SigningPackage(SigningPackage {
-        message: "hola".as_bytes().to_vec(),
         signing_commitments: big_signing_commitments,
+        message: "hola".as_bytes().to_vec(),
     });
     let validate_payload = Validate::validate(&payload).err().expect("an error");
     assert_eq!(validate_payload, MsgErr::TooManyCommitments);
@@ -325,8 +325,8 @@ fn validate_signingpackage() {
 
     let big_message = [0u8; constants::ZCASH_MAX_PROTOCOL_MESSAGE_LEN + 1].to_vec();
     let payload = Payload::SigningPackage(SigningPackage {
-        message: big_message,
         signing_commitments,
+        message: big_message,
     });
     let validate_payload = Validate::validate(&payload).err().expect("an error");
     assert_eq!(validate_payload, MsgErr::MsgTooBig);
@@ -395,8 +395,8 @@ fn serialize_signingpackage() {
     signing_commitments.insert(signer2.clone(), signing_commitment2.clone());
 
     let payload = Payload::SigningPackage(SigningPackage {
-        message: "hola".as_bytes().to_vec(),
         signing_commitments: signing_commitments.clone(),
+        message: "hola".as_bytes().to_vec(),
     });
 
     let message = Message {
