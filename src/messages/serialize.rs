@@ -42,13 +42,14 @@ impl<'de> Visitor<'de> for ParticipantIdVisitor {
             .write_str(format!("an integer between {} and {}", std::u8::MIN, std::u8::MAX).as_str())
     }
 
-    // We need to use u64 instead of u8 here because the JSON deserialized will call
+    // We need to use u64 instead of u8 here because the JSON deserializer will call
     // `visit_u64` for any unsigned int:
     // https://serde.rs/impl-deserialize.html#driving-a-visitor
     fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
+        // Note: deserialization can't fail, because all values are valid.
         if value == DEALER_PARTICIPANT_ID as u64 {
             return Ok(ParticipantId::Dealer);
         } else if value == AGGREGATOR_PARTICIPANT_ID as u64 {
