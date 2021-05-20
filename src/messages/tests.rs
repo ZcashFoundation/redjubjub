@@ -17,15 +17,14 @@ fn validate_version() {
     let signer1 = ParticipantId::Signer(0);
     let dealer = ParticipantId::Dealer;
 
-    let validate = Validate::validate(&Header {
+    let header = Header {
         version: MsgVersion(INVALID_VERSION),
         sender: dealer.clone(),
         receiver: signer1.clone(),
-    })
-    .err()
-    .expect("an error");
+    };
 
-    assert_eq!(validate, MsgErr::WrongVersion);
+    let validate = Validate::validate(&header);
+    assert_eq!(validate, Err(MsgErr::WrongVersion));
 
     let validate = Validate::validate(&Header {
         version: constants::BASIC_FROST_SERIALIZATION,
@@ -41,15 +40,14 @@ fn validate_version() {
 fn validate_sender_receiver() {
     let signer1 = ParticipantId::Signer(0);
 
-    let validate = Validate::validate(&Header {
+    let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
         sender: signer1.clone(),
         receiver: signer1,
-    })
-    .err()
-    .expect("an error");
+    };
 
-    assert_eq!(validate, MsgErr::SameSenderAndReceiver);
+    let validate = Validate::validate(&header);
+    assert_eq!(validate, Err(MsgErr::SameSenderAndReceiver));
 }
 
 #[test]
@@ -92,13 +90,13 @@ fn validate_sharepackage() {
     let validate_payload = Validate::validate(&payload);
     let valid_payload = validate_payload.expect("a valid payload").clone();
 
-    let validate_message = Validate::validate(&Message {
+    let message = Message {
         header: valid_header,
         payload: valid_payload.clone(),
-    })
-    .err()
-    .expect("an error");
-    assert_eq!(validate_message, MsgErr::SenderMustBeDealer);
+    };
+
+    let validate_message = Validate::validate(&message);
+    assert_eq!(validate_message, Err(MsgErr::SenderMustBeDealer));
 
     // change the header
     let header = Header {
@@ -109,13 +107,13 @@ fn validate_sharepackage() {
     let validate_header = Validate::validate(&header);
     let valid_header = validate_header.expect("a valid header").clone();
 
-    let validate_message = Validate::validate(&Message {
+    let message = Message {
         header: valid_header,
         payload: valid_payload,
-    })
-    .err()
-    .expect("an error");
-    assert_eq!(validate_message, MsgErr::ReceiverMustBeSigner);
+    };
+
+    let validate_message = Validate::validate(&message);
+    assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
 
     //
     let payload = Payload::SharePackage(SharePackage {
@@ -123,10 +121,10 @@ fn validate_sharepackage() {
         secret_share,
         share_commitment: share_commitment[0..1].to_vec(),
     });
-    let validate_payload = Validate::validate(&payload).err().expect("an error");
+    let validate_payload = Validate::validate(&payload);
     assert_eq!(
         validate_payload,
-        MsgErr::NotEnoughCommitments(constants::MIN_SIGNERS)
+        Err(MsgErr::NotEnoughCommitments(constants::MIN_SIGNERS))
     );
 
     share_commitment.resize((constants::MAX_SIGNERS + 1).into(), share_commitment[0]);
@@ -135,8 +133,8 @@ fn validate_sharepackage() {
         secret_share,
         share_commitment,
     });
-    let validate_payload = Validate::validate(&payload).err().expect("an error");
-    assert_eq!(validate_payload, MsgErr::TooManyCommitments);
+    let validate_payload = Validate::validate(&payload);
+    assert_eq!(validate_payload, Err(MsgErr::TooManyCommitments));
 }
 
 #[test]
@@ -204,13 +202,13 @@ fn validate_signingcommitments() {
         binding: AffinePoint::from(commitment[0].binding),
     });
 
-    let validate_message = Validate::validate(&Message {
+    let message = Message {
         header,
         payload: payload.clone(),
-    })
-    .err()
-    .expect("an error");
-    assert_eq!(validate_message, MsgErr::SenderMustBeSigner);
+    };
+
+    let validate_message = Validate::validate(&message);
+    assert_eq!(validate_message, Err(MsgErr::SenderMustBeSigner));
 
     // change the header
     let header = Header {
@@ -219,13 +217,13 @@ fn validate_signingcommitments() {
         receiver: signer2.clone(),
     };
 
-    let validate_message = Validate::validate(&Message {
+    let message = Message {
         header,
         payload: payload.clone(),
-    })
-    .err()
-    .expect("an error");
-    assert_eq!(validate_message, MsgErr::ReceiverMustBeAggergator);
+    };
+
+    let validate_message = Validate::validate(&message);
+    assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggergator));
 
     // change the header to valid
     let header = Header {
@@ -306,10 +304,10 @@ fn validate_signingpackage() {
         signing_commitments: signing_commitments.clone(),
         message: "hola".as_bytes().to_vec(),
     });
-    let validate_payload = Validate::validate(&payload).err().expect("an error");
+    let validate_payload = Validate::validate(&payload);
     assert_eq!(
         validate_payload,
-        MsgErr::NotEnoughCommitments(constants::MIN_SIGNERS)
+        Err(MsgErr::NotEnoughCommitments(constants::MIN_SIGNERS))
     );
 
     // add too many commitments
@@ -321,8 +319,8 @@ fn validate_signingpackage() {
         signing_commitments: big_signing_commitments,
         message: "hola".as_bytes().to_vec(),
     });
-    let validate_payload = Validate::validate(&payload).err().expect("an error");
-    assert_eq!(validate_payload, MsgErr::TooManyCommitments);
+    let validate_payload = Validate::validate(&payload);
+    assert_eq!(validate_payload, Err(MsgErr::TooManyCommitments));
 
     // add the other valid commitment
     signing_commitments.insert(signer2.clone(), signing_commitment2);
@@ -332,16 +330,15 @@ fn validate_signingpackage() {
         signing_commitments,
         message: big_message,
     });
-    let validate_payload = Validate::validate(&payload).err().expect("an error");
-    assert_eq!(validate_payload, MsgErr::MsgTooBig);
+    let validate_payload = Validate::validate(&payload);
+    assert_eq!(validate_payload, Err(MsgErr::MsgTooBig));
 
-    let validate_message = Validate::validate(&Message {
+    let message = Message {
         header,
         payload: payload.clone(),
-    })
-    .err()
-    .expect("an error");
-    assert_eq!(validate_message, MsgErr::SenderMustBeAggregator);
+    };
+    let validate_message = Validate::validate(&message);
+    assert_eq!(validate_message, Err(MsgErr::SenderMustBeAggregator));
 
     // change header
     let header = Header {
@@ -349,13 +346,14 @@ fn validate_signingpackage() {
         sender: aggregator.clone(),
         receiver: dealer.clone(),
     };
-    let validate_message = Validate::validate(&Message {
+
+    let message = Message {
         header: header.clone(),
         payload: payload.clone(),
-    })
-    .err()
-    .expect("an error");
-    assert_eq!(validate_message, MsgErr::ReceiverMustBeSigner);
+    };
+
+    let validate_message = Validate::validate(&message);
+    assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
