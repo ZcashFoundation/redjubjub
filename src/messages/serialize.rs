@@ -9,7 +9,9 @@ use serde::ser::{Serialize, Serializer};
 
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 
-use super::constants::{AGGREGATOR_PARTICIPANT_ID, DEALER_PARTICIPANT_ID};
+use super::constants::{
+    AGGREGATOR_PARTICIPANT_ID, DEALER_PARTICIPANT_ID, MAX_SIGNER_PARTICIPANT_ID,
+};
 use super::*;
 
 use std::fmt;
@@ -20,7 +22,10 @@ impl Serialize for ParticipantId {
         S: Serializer,
     {
         match *self {
-            ParticipantId::Signer(id) => serializer.serialize_u8(id),
+            ParticipantId::Signer(id) => {
+                assert!(id <= MAX_SIGNER_PARTICIPANT_ID);
+                serializer.serialize_u8(id)
+            }
             ParticipantId::Dealer => serializer.serialize_u8(DEALER_PARTICIPANT_ID),
             ParticipantId::Aggregator => serializer.serialize_u8(AGGREGATOR_PARTICIPANT_ID),
         }
