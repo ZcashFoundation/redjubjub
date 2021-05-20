@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{frost, verification_key::VerificationKey, SpendAuth};
+use crate::{frost, verification_key, SpendAuth};
 
 use std::collections::HashMap;
 
@@ -44,6 +44,19 @@ impl From<frost::Commitment> for AffinePoint {
 impl From<jubjub::ExtendedPoint> for AffinePoint {
     fn from(value: jubjub::ExtendedPoint) -> AffinePoint {
         AffinePoint(jubjub::AffinePoint::from(value).to_bytes())
+    }
+}
+
+/// Define our own `VerificationKey` type instead of using `frost::VerificationKey<SpendAuth>`.
+///
+/// The serialization design specifies that `VerificationKey<SpendAuth>` uses:
+/// "a 32-byte little-endian canonical representation".
+#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
+pub struct VerificationKey([u8; 32]);
+
+impl From<verification_key::VerificationKey<SpendAuth>> for VerificationKey {
+    fn from(value: verification_key::VerificationKey<SpendAuth>) -> VerificationKey {
+        VerificationKey(<[u8; 32]>::from(value))
     }
 }
 
@@ -127,7 +140,7 @@ pub enum ParticipantId {
 pub struct SharePackage {
     /// The public signing key that represents the entire group:
     /// `frost::SharePackage.group_public`.
-    group_public: VerificationKey<SpendAuth>,
+    group_public: VerificationKey,
     /// This participant's secret key share: `frost::SharePackage.share.value`.
     secret_share: Scalar,
     /// Commitment for the signer as a single jubjub::AffinePoint.

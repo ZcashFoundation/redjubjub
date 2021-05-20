@@ -4,7 +4,7 @@ use super::*;
 
 use crate::messages::validate::{MsgErr, Validate};
 
-use crate::frost;
+use crate::{frost, verification_key};
 
 use serde_json;
 use std::convert::TryFrom;
@@ -72,7 +72,9 @@ fn validate_sharepackage() {
     let validate_header = Validate::validate(&header);
     let valid_header = validate_header.expect("a valid header").clone();
 
-    let group_public = VerificationKey::try_from(shares[0].group_public.bytes).unwrap();
+    let group_public = VerificationKey::from(
+        verification_key::VerificationKey::try_from(shares[0].group_public.bytes).unwrap(),
+    );
     let secret_share = Scalar::from(shares[0].share.value.0);
     let mut share_commitment: Vec<AffinePoint> = shares[0]
         .share
@@ -153,7 +155,9 @@ fn serialize_sharepackage() {
         receiver: signer1.clone(),
     };
 
-    let group_public = VerificationKey::try_from(shares[0].group_public.bytes).unwrap();
+    let group_public = VerificationKey::from(
+        verification_key::VerificationKey::try_from(shares[0].group_public.bytes).unwrap(),
+    );
     let secret_share = Scalar::from(shares[0].share.value.0);
     let share_commitment: Vec<AffinePoint> = shares[0]
         .share
