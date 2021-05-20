@@ -34,7 +34,7 @@ use crate::{HStar, Signature, SpendAuth, VerificationKey};
 
 /// A secret scalar value representing a single signer's secret key.
 #[derive(Clone, Copy, Default)]
-pub struct Secret(pub Scalar);
+pub struct Secret(pub(crate) Scalar);
 
 // Zeroizes `Secret` to be the `Default` value on drop (when it goes out of
 // scope).  Luckily the derived `Default` includes the `Default` impl of
@@ -64,9 +64,9 @@ impl From<jubjub::ExtendedPoint> for Public {
 pub struct Share {
     receiver_index: u8,
     /// Secret Key.
-    pub value: Secret,
+    pub(crate) value: Secret,
     /// The commitments to be distributed among signers.
-    pub commitment: ShareCommitment,
+    pub(crate) commitment: ShareCommitment,
 }
 
 /// A Jubjub point that is a commitment to one coefficient of our secret
@@ -75,7 +75,7 @@ pub struct Share {
 /// This is a (public) commitment to one coefficient of a secret polynomial used
 /// for performing verifiable secret sharing for a Shamir secret share.
 #[derive(Clone)]
-pub struct Commitment(pub jubjub::ExtendedPoint);
+pub(crate) struct Commitment(pub(crate) jubjub::ExtendedPoint);
 
 /// Contains the commitments to the coefficients for our secret polynomial _f_,
 /// used to generate participants' key shares.
@@ -90,7 +90,7 @@ pub struct Commitment(pub jubjub::ExtendedPoint);
 /// some agreed-upon public location for publication, where each participant can
 /// ensure that they received the correct (and same) value.
 #[derive(Clone)]
-pub struct ShareCommitment(pub Vec<Commitment>);
+pub struct ShareCommitment(pub(crate) Vec<Commitment>);
 
 /// The product of all signers' individual commitments, published as part of the
 /// final signature.
@@ -364,9 +364,9 @@ impl SigningNonces {
 pub struct SigningCommitments {
     index: u8,
     /// The hiding point.
-    pub hiding: jubjub::ExtendedPoint,
+    pub(crate) hiding: jubjub::ExtendedPoint,
     /// The binding point.
-    pub binding: jubjub::ExtendedPoint,
+    pub(crate) binding: jubjub::ExtendedPoint,
 }
 
 impl From<(u8, &SigningNonces)> for SigningCommitments {
