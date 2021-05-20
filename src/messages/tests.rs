@@ -172,13 +172,51 @@ fn serialize_sharepackage() {
     });
 
     let message = Message {
-        header: header,
+        header: header.clone(),
         payload: payload.clone(),
     };
 
-    let serialized = serde_json::to_string(&message).unwrap();
-    let deserialized: Message = serde_json::from_str(serialized.as_str()).unwrap();
-    assert_eq!(message, deserialized);
+    let serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_bytes: Message = bincode::deserialize(&serialized_bytes).unwrap();
+    assert_eq!(message, deserialized_bytes);
+
+    let serialized_json = serde_json::to_string(&message).unwrap();
+    let deserialized_json: Message = serde_json::from_str(serialized_json.as_str()).unwrap();
+    assert_eq!(message, deserialized_json);
+
+    // make sure the header fields are in the right order
+    let header_serialized_bytes = bincode::serialize(&header).unwrap();
+    let deserialized_version: MsgVersion =
+        bincode::deserialize(&header_serialized_bytes[0..1]).unwrap();
+    let deserialized_sender: ParticipantId =
+        bincode::deserialize(&header_serialized_bytes[1..2]).unwrap();
+    let deserialized_receiver: ParticipantId =
+        bincode::deserialize(&header_serialized_bytes[2..3]).unwrap();
+    assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
+    assert_eq!(deserialized_sender, dealer.clone());
+    assert_eq!(deserialized_receiver, signer1.clone());
+
+    // make sure the payload fields are in the right order
+    let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    let deserialized_group_public: VerificationKey =
+        bincode::deserialize(&payload_serialized_bytes[4..36]).unwrap();
+    let deserialized_secret_share: Scalar =
+        bincode::deserialize(&payload_serialized_bytes[36..68]).unwrap();
+    let deserialized_share_commitment: Vec<AffinePoint> =
+        bincode::deserialize(&payload_serialized_bytes[68..payload_serialized_bytes.len()])
+            .unwrap();
+    assert_eq!(deserialized_group_public, group_public);
+    assert_eq!(deserialized_secret_share, secret_share);
+    assert_eq!(deserialized_share_commitment, share_commitment);
+
+    // make sure the message fields are in the right order
+    let message_serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_header: Header =
+        bincode::deserialize(&message_serialized_bytes[0..3]).unwrap();
+    let deserialized_payload: Payload =
+        bincode::deserialize(&message_serialized_bytes[3..message_serialized_bytes.len()]).unwrap();
+    assert_eq!(deserialized_header, header);
+    assert_eq!(deserialized_payload, payload);
 }
 
 #[test]
@@ -253,19 +291,53 @@ fn serialize_signingcommitments() {
         receiver: signer1.clone(),
     };
 
-    let payload = Payload::SigningCommitments(SigningCommitments {
-        hiding: AffinePoint::from(commitment[0].hiding),
-        binding: AffinePoint::from(commitment[0].binding),
-    });
+    let hiding = AffinePoint::from(commitment[0].hiding);
+    let binding = AffinePoint::from(commitment[0].binding);
+
+    let payload = Payload::SigningCommitments(SigningCommitments { hiding, binding });
 
     let message = Message {
-        header,
+        header: header.clone(),
         payload: payload.clone(),
     };
 
-    let serialized = serde_json::to_string(&message).unwrap();
-    let deserialized: Message = serde_json::from_str(serialized.as_str()).unwrap();
-    assert_eq!(message, deserialized);
+    let serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_bytes: Message = bincode::deserialize(&serialized_bytes).unwrap();
+    assert_eq!(message, deserialized_bytes);
+
+    let serialized_json = serde_json::to_string(&message).unwrap();
+    let deserialized_json: Message = serde_json::from_str(serialized_json.as_str()).unwrap();
+    assert_eq!(message, deserialized_json);
+
+    // make sure the header fields are in the right order
+    let header_serialized_bytes = bincode::serialize(&header).unwrap();
+    let deserialized_version: MsgVersion =
+        bincode::deserialize(&header_serialized_bytes[0..1]).unwrap();
+    let deserialized_sender: ParticipantId =
+        bincode::deserialize(&header_serialized_bytes[1..2]).unwrap();
+    let deserialized_receiver: ParticipantId =
+        bincode::deserialize(&header_serialized_bytes[2..3]).unwrap();
+    assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
+    assert_eq!(deserialized_sender, aggregator.clone());
+    assert_eq!(deserialized_receiver, signer1.clone());
+
+    // make sure the payload fields are in the right order
+    let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    let deserialized_hiding: AffinePoint =
+        bincode::deserialize(&payload_serialized_bytes[4..36]).unwrap();
+    let deserialized_binding: AffinePoint =
+        bincode::deserialize(&payload_serialized_bytes[36..68]).unwrap();
+    assert_eq!(deserialized_hiding, hiding);
+    assert_eq!(deserialized_binding, binding);
+
+    // make sure the message fields are in the right order
+    let message_serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_header: Header =
+        bincode::deserialize(&message_serialized_bytes[0..3]).unwrap();
+    let deserialized_payload: Payload =
+        bincode::deserialize(&message_serialized_bytes[3..message_serialized_bytes.len()]).unwrap();
+    assert_eq!(deserialized_header, header);
+    assert_eq!(deserialized_payload, payload);
 }
 
 #[test]
@@ -402,11 +474,57 @@ fn serialize_signingpackage() {
     });
 
     let message = Message {
-        header,
+        header: header.clone(),
         payload: payload.clone(),
     };
 
-    let serialized = serde_json::to_string(&message).unwrap();
-    let deserialized: Message = serde_json::from_str(serialized.as_str()).unwrap();
-    assert_eq!(message, deserialized);
+    let serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_bytes: Message = bincode::deserialize(&serialized_bytes).unwrap();
+    assert_eq!(message, deserialized_bytes);
+
+    let serialized_json = serde_json::to_string(&message).unwrap();
+    let deserialized_json: Message = serde_json::from_str(serialized_json.as_str()).unwrap();
+    assert_eq!(message, deserialized_json);
+
+    // make sure the header fields are in the right order
+    let header_serialized_bytes = bincode::serialize(&header).unwrap();
+    let deserialized_version: MsgVersion =
+        bincode::deserialize(&header_serialized_bytes[0..1]).unwrap();
+    let deserialized_sender: ParticipantId =
+        bincode::deserialize(&header_serialized_bytes[1..2]).unwrap();
+    let deserialized_receiver: ParticipantId =
+        bincode::deserialize(&header_serialized_bytes[2..3]).unwrap();
+    assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
+    assert_eq!(deserialized_sender, aggregator.clone());
+    assert_eq!(deserialized_receiver, signer1.clone());
+
+    // make sure the payload fields are in the right order
+    let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    let _map_len_serialized: u64 = bincode::deserialize(&payload_serialized_bytes[4..12]).unwrap();
+
+    // TODO: deserializing the entire HashMap brings problems
+    let _deserialized_participant_id_1: ParticipantId =
+        bincode::deserialize(&payload_serialized_bytes[12..13]).unwrap();
+    let _deserialized_signing_commitment_1: SigningCommitments =
+        bincode::deserialize(&payload_serialized_bytes[13..13 + 64]).unwrap();
+    let _deserialized_participant_id_2: ParticipantId =
+        bincode::deserialize(&payload_serialized_bytes[13 + 64..13 + 64 + 1]).unwrap();
+    let _deserialized_signing_commitment_2: SigningCommitments =
+        bincode::deserialize(&payload_serialized_bytes[13 + 64 + 1..13 + 128 + 1]).unwrap();
+    let deserialized_message: Vec<u8> = bincode::deserialize(
+        &payload_serialized_bytes[13 + 128 + 1..payload_serialized_bytes.len()],
+    )
+    .unwrap();
+
+    // TODO: We can't gauarantee the order of the entiries in the hashmap so don't test them by now.
+    assert_eq!(deserialized_message, "hola".as_bytes().to_vec());
+
+    // make sure the message fields are in the right order
+    let message_serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_header: Header =
+        bincode::deserialize(&message_serialized_bytes[0..3]).unwrap();
+    let deserialized_payload: Payload =
+        bincode::deserialize(&message_serialized_bytes[3..message_serialized_bytes.len()]).unwrap();
+    assert_eq!(deserialized_header, header);
+    assert_eq!(deserialized_payload, payload);
 }
