@@ -389,6 +389,10 @@ pub struct SigningPackage {
     pub message: &'static [u8],
 }
 
+/// A representation of a single signature used in FROST structures and messages.
+#[derive(Clone, Copy, Default)]
+pub struct FrostSignature(Scalar);
+
 /// A participant's signature share, which the coordinator will use to aggregate
 /// with all other signer's shares into the joint signature.
 #[derive(Clone, Copy, Default)]
@@ -396,7 +400,7 @@ pub struct SignatureShare {
     /// Represents the participant index.
     pub(crate) index: u8,
     /// This participant's signature over the message.
-    pub(crate) signature: Scalar,
+    pub(crate) signature: FrostSignature,
 }
 
 // Zeroizes `SignatureShare` to be the `Default` value on drop (when it goes out
@@ -415,7 +419,7 @@ impl SignatureShare {
         commitment: jubjub::ExtendedPoint,
         challenge: Scalar,
     ) -> Result<(), &'static str> {
-        if (SpendAuth::basepoint() * self.signature)
+        if (SpendAuth::basepoint() * self.signature.0)
             != (commitment + pubkey.0 * challenge * lambda_i)
         {
             return Err("Invalid signature share");
@@ -586,7 +590,7 @@ pub fn sign(
 
     Ok(SignatureShare {
         index: share_package.index,
-        signature,
+        signature: FrostSignature(signature),
     })
 }
 
@@ -641,7 +645,7 @@ pub fn aggregate(
     // a plain Schnorr signature.
     let mut z = Scalar::zero();
     for signature_share in signing_shares {
-        z += signature_share.signature;
+        z += signature_share.signature.0;
     }
 
     Ok(Signature {
