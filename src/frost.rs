@@ -443,7 +443,11 @@ impl SignatureShare {
 /// perform the first round. Batching entails generating more than one
 /// nonce/commitment pair at a time.  Nonces should be stored in secret storage
 /// for later use, whereas the commitments are published.
+<<<<<<< HEAD
 
+=======
+///
+>>>>>>> 316082b (Change the type of the identifiers from u8 to u64)
 /// The number of nonces is limited to 255. This limit can be increased if it
 /// turns out to be too conservative.
 // TODO: Make sure the above is a correct statement, fix if needed in:
