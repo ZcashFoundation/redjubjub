@@ -391,7 +391,7 @@ pub struct SigningPackage {
 
 /// A representation of a single signature used in FROST structures and messages.
 #[derive(Clone, Copy, Default)]
-pub struct FrostSignature(Scalar);
+pub struct SignatureResponse(Scalar);
 
 /// A participant's signature share, which the coordinator will use to aggregate
 /// with all other signer's shares into the joint signature.
@@ -400,7 +400,7 @@ pub struct SignatureShare {
     /// Represents the participant index.
     pub(crate) index: u8,
     /// This participant's signature over the message.
-    pub(crate) signature: FrostSignature,
+    pub(crate) signature: SignatureResponse,
 }
 
 // Zeroizes `SignatureShare` to be the `Default` value on drop (when it goes out
@@ -590,7 +590,7 @@ pub fn sign(
 
     Ok(SignatureShare {
         index: share_package.index,
-        signature: FrostSignature(signature),
+        signature: SignatureResponse(signature),
     })
 }
 
