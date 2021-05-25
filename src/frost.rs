@@ -251,6 +251,8 @@ fn generate_shares<R: RngCore + CryptoRng>(
     threshold: u8,
     mut rng: R,
 ) -> Result<Vec<Share>, &'static str> {
+    use std::convert::TryInto;
+
     if threshold < 1 {
         return Err("Threshold cannot be 0");
     }
@@ -289,22 +291,37 @@ fn generate_shares<R: RngCore + CryptoRng>(
         )));
     }
 
+    // Participants' identifiers are generated as follows:
+    // id = H("FROST_id", g^s, i), where:
+    // g is the basepoint,
+    // s is the secret chosen by the dealer, and
+    // i is the index of the participant.
+    // The hash is finalized in the loop that follows.
+    let mut hasher = HStar::default();
+    hasher
+        .update("FROST_id".as_bytes())
+        .update(jubjub::AffinePoint::from(SpendAuth::basepoint() * secret.0).to_bytes());
+
     // Evaluate the polynomial with `secret` as the constant term
     // and `coeffs` as the other coefficients at the point x=share_index,
     // using Horner's method.
     for index in 1..numshares + 1 {
-        let scalar_index = Scalar::from(index as u64);
+        // The actual identifier consists of the first 64 bits of the resulting hash.
+        let id_bytes = hasher.update(index.to_be_bytes()).finalize().to_bytes();
+        let id = u64::from_be_bytes(id_bytes[0..8].try_into().expect("slice of incorrect size"));
+
+        let scalar_id = Scalar::from(id);
         let mut value = Scalar::zero();
 
         // Polynomial evaluation, for this index
         for i in (0..numcoeffs).rev() {
             value += &coefficients[i as usize];
-            value *= scalar_index;
+            value *= scalar_id;
         }
         value += secret.0;
 
         shares.push(Share {
-            receiver_index: index as u64,
+            receiver_index: id,
             value: Secret(value),
             commitment: commitment.clone(),
         });

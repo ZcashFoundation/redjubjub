@@ -15,11 +15,12 @@ fn check_sign_with_dealer() {
     let mut commitments: Vec<frost::SigningCommitments> = Vec::with_capacity(threshold as usize);
 
     // Round 1, generating nonces and signing commitments for each participant.
-    for participant_index in 1..(threshold + 1) {
+    // Participants are represented by shares.
+    for share in &shares {
         // Generate one (1) nonce and one SigningCommitments instance for each
         // participant, up to _threshold_.
-        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut rng);
-        nonces.insert(participant_index as u64, nonce);
+        let (nonce, commitment) = frost::preprocess(1, share.index, &mut rng);
+        nonces.insert(share.index, nonce);
         commitments.push(commitment[0]);
     }
 
