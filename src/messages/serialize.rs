@@ -24,10 +24,10 @@ impl Serialize for ParticipantId {
         match *self {
             ParticipantId::Signer(id) => {
                 assert!(id <= MAX_SIGNER_PARTICIPANT_ID);
-                serializer.serialize_u8(id)
+                serializer.serialize_u64(id)
             }
-            ParticipantId::Dealer => serializer.serialize_u8(DEALER_PARTICIPANT_ID),
-            ParticipantId::Aggregator => serializer.serialize_u8(AGGREGATOR_PARTICIPANT_ID),
+            ParticipantId::Dealer => serializer.serialize_u64(DEALER_PARTICIPANT_ID),
+            ParticipantId::Aggregator => serializer.serialize_u64(AGGREGATOR_PARTICIPANT_ID),
         }
     }
 }
@@ -38,24 +38,22 @@ impl<'de> Visitor<'de> for ParticipantIdVisitor {
     type Value = ParticipantId;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter
-            .write_str(format!("an integer between {} and {}", std::u8::MIN, std::u8::MAX).as_str())
+        formatter.write_str(
+            format!("an integer between {} and {}", std::u64::MIN, std::u64::MAX).as_str(),
+        )
     }
 
-    // We need to use u64 instead of u8 here because the JSON deserializer will call
-    // `visit_u64` for any unsigned int:
-    // https://serde.rs/impl-deserialize.html#driving-a-visitor
     fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
         // Note: deserialization can't fail, because all values are valid.
-        if value == DEALER_PARTICIPANT_ID as u64 {
+        if value == DEALER_PARTICIPANT_ID {
             return Ok(ParticipantId::Dealer);
-        } else if value == AGGREGATOR_PARTICIPANT_ID as u64 {
+        } else if value == AGGREGATOR_PARTICIPANT_ID {
             return Ok(ParticipantId::Aggregator);
         } else {
-            return Ok(ParticipantId::Signer(value as u8));
+            return Ok(ParticipantId::Signer(value));
         }
     }
 }
@@ -65,6 +63,6 @@ impl<'de> Deserialize<'de> for ParticipantId {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_u8(ParticipantIdVisitor)
+        deserializer.deserialize_u64(ParticipantIdVisitor)
     }
 }

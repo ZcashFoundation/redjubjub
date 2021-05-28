@@ -3,9 +3,8 @@
 //! [RFC-001]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md
 #![allow(dead_code)]
 
-use serde::{Deserialize, Serialize};
-
 use crate::{frost, verification_key, SpendAuth};
+use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 
@@ -15,37 +14,65 @@ mod serialize;
 mod tests;
 mod validate;
 
-/// Define our own `Scalar` type instead of using `jubjub::Scalar`.
+/// Define our own `Secret` type instead of using `frost::Secret`.
 ///
-/// The serialization design specifies that `Scalar` uses:
+/// The serialization design specifies that `Secret` is a `Scalar` that uses:
 /// "a 32-byte little-endian canonical representation".
-#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
-pub struct Scalar([u8; 32]);
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+pub struct Secret([u8; 32]);
 
-impl From<jubjub::Fr> for Scalar {
-    fn from(value: jubjub::Fr) -> Scalar {
-        Scalar(value.to_bytes())
+impl From<frost::Secret> for Secret {
+    fn from(value: frost::Secret) -> Secret {
+        Secret(value.0.to_bytes())
     }
 }
 
-/// Define our own `AffinePoint` type instead of using `jubjub::AffinePoint`.
+/// Define our own `Commitment` type instead of using `frost::Commitment`.
 ///
-/// The serialization design specifies that `AffinePoint` uses:
+/// The serialization design specifies that `Commitment` is a `AffinePoint` that uses:
 /// "a 32-byte little-endian canonical representation".
-#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
-pub struct AffinePoint([u8; 32]);
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
+pub struct Commitment([u8; 32]);
 
-impl From<frost::Commitment> for AffinePoint {
-    fn from(value: frost::Commitment) -> AffinePoint {
-        AffinePoint(jubjub::AffinePoint::from(value.0).to_bytes())
+impl From<frost::Commitment> for Commitment {
+    fn from(value: frost::Commitment) -> Commitment {
+        Commitment(jubjub::AffinePoint::from(value.0).to_bytes())
     }
 }
 
+/// Define our own `GroupCommitment` type instead of using `frost::GroupCommitment`.
+///
+/// The serialization design specifies that `GroupCommitment` is a `AffinePoint` that uses:
+/// "a 32-byte little-endian canonical representation".
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct GroupCommitment([u8; 32]);
+
+impl From<frost::GroupCommitment> for GroupCommitment {
+    fn from(value: frost::GroupCommitment) -> GroupCommitment {
+        GroupCommitment(jubjub::AffinePoint::from(value.0).to_bytes())
+    }
+}
+
+/// Define our own `SignatureResponse` type instead of using `frost::SignatureResponse`.
+///
+/// The serialization design specifies that `SignatureResponse` is a `Scalar` that uses:
+/// "a 32-byte little-endian canonical representation".
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct SignatureResponse([u8; 32]);
+
+impl From<frost::SignatureResponse> for SignatureResponse {
+    fn from(value: frost::SignatureResponse) -> SignatureResponse {
+        SignatureResponse(value.0.to_bytes())
+    }
+}
+
+/*
 impl From<jubjub::ExtendedPoint> for AffinePoint {
     fn from(value: jubjub::ExtendedPoint) -> AffinePoint {
         AffinePoint(jubjub::AffinePoint::from(value).to_bytes())
     }
 }
+*/
 
 /// Define our own `VerificationKey` type instead of using `frost::VerificationKey<SpendAuth>`.
 ///
@@ -122,7 +149,7 @@ pub enum ParticipantId {
     /// A serialized participant ID for a signer.
     ///
     /// Must be less than or equal to `MAX_SIGNER_PARTICIPANT_ID`.
-    Signer(u8),
+    Signer(u64),
     /// The fixed participant ID for the dealer.
     Dealer,
     /// The fixed participant ID for the aggregator.
@@ -142,11 +169,11 @@ pub struct SharePackage {
     /// `frost::SharePackage.group_public`.
     group_public: VerificationKey,
     /// This participant's secret key share: `frost::SharePackage.share.value`.
-    secret_share: Scalar,
-    /// Commitment for the signer as a single jubjub::AffinePoint.
-    /// A set of commitments to the coefficients (which themselves are scalars)
-    /// for a secret polynomial _f_: `frost::SharePackage.share.commitment`
-    share_commitment: Vec<AffinePoint>,
+    secret_share: Secret,
+    /// The commitments to the coefficients for our secret polynomial _f_,
+    /// used to generate participants' key shares. Participants use these to perform
+    /// verifiable secret sharing.
+    share_commitment: Vec<Commitment>,
 }
 
 /// The data required to serialize `frost::SigningCommitments`.
@@ -156,9 +183,9 @@ pub struct SharePackage {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct SigningCommitments {
     /// The hiding point: `frost::SigningCommitments.hiding`
-    hiding: AffinePoint,
+    hiding: Commitment,
     /// The binding point: `frost::SigningCommitments.binding`
-    binding: AffinePoint,
+    binding: Commitment,
 }
 
 /// The data required to serialize `frost::SigningPackage`.
@@ -185,7 +212,7 @@ pub struct SigningPackage {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct SignatureShare {
     /// This participant's signature over the message: `frost::SignatureShare.signature`
-    signature: Scalar,
+    signature: SignatureResponse,
 }
 
 /// The data required to serialize a successful output from `frost::aggregate()`.
@@ -194,8 +221,8 @@ pub struct SignatureShare {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct AggregateSignature {
     /// The aggregated group commitment: `Signature<SpendAuth>.r_bytes` returned by `frost::aggregate`
-    group_commitment: AffinePoint,
+    group_commitment: GroupCommitment,
     /// A plain Schnorr signature created by summing all the signature shares:
     /// `Signature<SpendAuth>.s_bytes` returned by `frost::aggregate`
-    schnorr_signature: Scalar,
+    schnorr_signature: SignatureResponse,
 }
