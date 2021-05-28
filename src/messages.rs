@@ -21,12 +21,6 @@ mod validate;
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 pub struct Secret([u8; 32]);
 
-impl From<frost::Secret> for Secret {
-    fn from(value: frost::Secret) -> Secret {
-        Secret(value.0.to_bytes())
-    }
-}
-
 /// Define our own `Commitment` type instead of using `frost::Commitment`.
 ///
 /// The serialization design specifies that `Commitment` is a `AffinePoint` that uses:
@@ -47,32 +41,12 @@ impl From<frost::Commitment> for Commitment {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct GroupCommitment([u8; 32]);
 
-impl From<frost::GroupCommitment> for GroupCommitment {
-    fn from(value: frost::GroupCommitment) -> GroupCommitment {
-        GroupCommitment(jubjub::AffinePoint::from(value.0).to_bytes())
-    }
-}
-
 /// Define our own `SignatureResponse` type instead of using `frost::SignatureResponse`.
 ///
 /// The serialization design specifies that `SignatureResponse` is a `Scalar` that uses:
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SignatureResponse([u8; 32]);
-
-impl From<frost::SignatureResponse> for SignatureResponse {
-    fn from(value: frost::SignatureResponse) -> SignatureResponse {
-        SignatureResponse(value.0.to_bytes())
-    }
-}
-
-/*
-impl From<jubjub::ExtendedPoint> for AffinePoint {
-    fn from(value: jubjub::ExtendedPoint) -> AffinePoint {
-        AffinePoint(jubjub::AffinePoint::from(value).to_bytes())
-    }
-}
-*/
 
 /// Define our own `VerificationKey` type instead of using `frost::VerificationKey<SpendAuth>`.
 ///

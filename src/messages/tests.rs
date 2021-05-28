@@ -504,7 +504,7 @@ fn serialize_signingpackage() {
     assert_eq!(deserialized_receiver, signer1.clone());
 
     // make sure the payload fields are in the right order
-    let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    let _payload_serialized_bytes = bincode::serialize(&payload).unwrap();
     //let _map_len_serialized: u64 = bincode::deserialize(&payload_serialized_bytes[0..8]).unwrap();
 
     /*
