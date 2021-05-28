@@ -438,8 +438,10 @@ impl SignatureShare {
 /// nonce/commitment pair at a time.  Nonces should be stored in secret storage
 /// for later use, whereas the commitments are published.
 
-/// The number of nonces is limited to 255. This limit can be increased if it
+/// The number of nonces is limited to 255. This limit can be increased if it 
 /// turns out to be too conservative.
+// TODO: Make sure the above is a correct statement, fix if needed in:
+// https://github.com/ZcashFoundation/redjubjub/issues/111
 pub fn preprocess<R>(
     num_nonces: u8,
     participant_index: u64,
