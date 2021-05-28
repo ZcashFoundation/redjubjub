@@ -73,7 +73,7 @@ pub struct Share {
 /// This is a (public) commitment to one coefficient of a secret polynomial used
 /// for performing verifiable secret sharing for a Shamir secret share.
 #[derive(Clone)]
-struct Commitment(jubjub::AffinePoint);
+pub struct Commitment(jubjub::AffinePoint);
 
 /// Contains the commitments to the coefficients for our secret polynomial _f_,
 /// used to generate participants' key shares.
@@ -438,7 +438,7 @@ impl SignatureShare {
 /// nonce/commitment pair at a time.  Nonces should be stored in secret storage
 /// for later use, whereas the commitments are published.
 
-/// The number of nonces is limited to 255. This limit can be increased if it 
+/// The number of nonces is limited to 255. This limit can be increased if it
 /// turns out to be too conservative.
 // TODO: Make sure the above is a correct statement, fix if needed in:
 // https://github.com/ZcashFoundation/redjubjub/issues/111

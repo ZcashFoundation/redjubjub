@@ -3,9 +3,7 @@
 //! [RFC-001]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md
 #![allow(dead_code)]
 
-use jubjub::{AffinePoint, Scalar};
-
-use crate::{verification_key::VerificationKey, SpendAuth};
+use crate::{frost, verification_key::VerificationKey, SpendAuth};
 
 use std::collections::HashMap;
 
@@ -70,7 +68,7 @@ pub enum ParticipantId {
     /// A serialized participant ID for a signer.
     ///
     /// Must be less than or equal to `MAX_SIGNER_PARTICIPANT_ID`.
-    Signer(u8),
+    Signer(u64),
     /// The fixed participant ID for the dealer.
     Dealer,
     /// The fixed participant ID for the aggregator.
@@ -89,11 +87,11 @@ pub struct SharePackage {
     /// `frost::SharePackage.group_public`.
     group_public: VerificationKey<SpendAuth>,
     /// This participant's secret key share: `frost::SharePackage.share.value`.
-    secret_share: Scalar,
-    /// Commitment for the signer as a single jubjub::AffinePoint.
-    /// A set of commitments to the coefficients (which themselves are scalars)
-    /// for a secret polynomial _f_: `frost::SharePackage.share.commitment`
-    share_commitment: Vec<AffinePoint>,
+    secret_share: frost::Secret,
+    /// The commitments to the coefficients for our secret polynomial _f_,
+    /// used to generate participants' key shares. Participants use these to perform
+    /// verifiable secret sharing.
+    share_commitment: Vec<frost::Commitment>,
 }
 
 /// The data required to serialize `frost::SigningCommitments`.
@@ -102,9 +100,9 @@ pub struct SharePackage {
 /// A signing commitment from the first round of the signing protocol.
 pub struct SigningCommitments {
     /// The hiding point: `frost::SigningCommitments.hiding`
-    hiding: AffinePoint,
+    hiding: frost::Commitment,
     /// The binding point: `frost::SigningCommitments.binding`
-    binding: AffinePoint,
+    binding: frost::Commitment,
 }
 
 /// The data required to serialize `frost::SigningPackage`.
@@ -129,7 +127,7 @@ pub struct SigningPackage {
 /// and generate a final spend signature.
 pub struct SignatureShare {
     /// This participant's signature over the message: `frost::SignatureShare.signature`
-    signature: Scalar,
+    signature: frost::SignatureResponse,
 }
 
 /// The data required to serialize a successful output from `frost::aggregate()`.
@@ -137,8 +135,8 @@ pub struct SignatureShare {
 /// The final signature is broadcasted by the aggregator to all signers.
 pub struct AggregateSignature {
     /// The aggregated group commitment: `Signature<SpendAuth>.r_bytes` returned by `frost::aggregate`
-    group_commitment: AffinePoint,
+    group_commitment: frost::GroupCommitment,
     /// A plain Schnorr signature created by summing all the signature shares:
     /// `Signature<SpendAuth>.s_bytes` returned by `frost::aggregate`
-    schnorr_signature: Scalar,
+    schnorr_signature: frost::SignatureResponse,
 }
