@@ -4,7 +4,6 @@
 #![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
-
 use crate::{verification_key::VerificationKey, SpendAuth};
 
 use std::collections::HashMap;
@@ -12,19 +11,34 @@ use std::collections::HashMap;
 mod constants;
 mod validate;
 
-/// Define our own `Scalar` type instead of using `jubjub::Scalar`.
+/// Define our own `Secret` type instead of using `frost::Secret`.
 ///
-/// The serialization design specifies that `Scalar` uses:
+/// The serialization design specifies that `Secret` is a `Scalar` that uses:
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Scalar([u8; 32]);
+pub struct Secret([u8; 32]);
 
-/// Define our own `AffinePoint` type instead of using `jubjub::AffinePoint`.
+/// Define our own `Commitment` type instead of using `frost::Commitment`.
 ///
-/// The serialization design specifies that `AffinePoint` uses:
+/// The serialization design specifies that `Commitment` is a `AffinePoint` that uses:
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AffinePoint([u8; 32]);
+pub struct Commitment([u8; 32]);
+
+/// Define our own `GroupCommitment` type instead of using `frost::GroupCommitment`.
+///
+/// The serialization design specifies that `GroupCommitment` is a `AffinePoint` that uses:
+/// "a 32-byte little-endian canonical representation".
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GroupCommitment([u8; 32]);
+
+/// Define our own `SignatureResponse` type instead of using `frost::SignatureResponse`.
+///
+/// The serialization design specifies that `SignatureResponse` is a `Scalar` that uses:
+/// "a 32-byte little-endian canonical representation".
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SignatureResponse([u8; 32]);
+
 
 /// The data required to serialize a frost message.
 #[derive(Serialize, Deserialize, Debug)]
@@ -88,7 +102,7 @@ pub enum ParticipantId {
     /// A serialized participant ID for a signer.
     ///
     /// Must be less than or equal to `MAX_SIGNER_PARTICIPANT_ID`.
-    Signer(u8),
+    Signer(u64),
     /// The fixed participant ID for the dealer.
     Dealer,
     /// The fixed participant ID for the aggregator.
@@ -104,15 +118,15 @@ pub enum ParticipantId {
 /// Note: `frost::SharePackage.public` can be calculated from `secret_share`.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SharePackage {
-    /// This participant's secret key share: `frost::SharePackage.share.value`.
-    secret_share: Scalar,
-    /// Commitment for the signer as a single jubjub::AffinePoint.
-    /// A set of commitments to the coefficients (which themselves are scalars)
-    /// for a secret polynomial _f_: `frost::SharePackage.share.commitment`
-    share_commitment: Vec<AffinePoint>,
     /// The public signing key that represents the entire group:
     /// `frost::SharePackage.group_public`.
     group_public: VerificationKey<SpendAuth>,
+    /// This participant's secret key share: `frost::SharePackage.share.value`.
+    secret_share: Secret,
+    /// The commitments to the coefficients for our secret polynomial _f_,
+    /// used to generate participants' key shares. Participants use these to perform
+    /// verifiable secret sharing.
+    share_commitment: Vec<Commitment>,
 }
 
 /// The data required to serialize `frost::SigningCommitments`.
@@ -122,9 +136,9 @@ pub struct SharePackage {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SigningCommitments {
     /// The hiding point: `frost::SigningCommitments.hiding`
-    hiding: AffinePoint,
+    hiding: Commitment,
     /// The binding point: `frost::SigningCommitments.binding`
-    binding: AffinePoint,
+    binding: Commitment,
 }
 
 /// The data required to serialize `frost::SigningPackage`.
@@ -133,13 +147,15 @@ pub struct SigningCommitments {
 /// sends it to each signer with all the commitments collected.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SigningPackage {
-    /// The message to be signed: `frost::SigningPackage.message`
-    message: Vec<u8>,
     /// The collected commitments for each signer as a hashmap of
     /// unique participant identifiers: `frost::SigningPackage.signing_commitments`
     ///
     /// Signing packages that contain duplicate or missing `ParticipantID`s are invalid.
     signing_commitments: HashMap<ParticipantId, SigningCommitments>,
+    /// The message to be signed: `frost::SigningPackage.message`.
+    ///
+    /// Each signer should perform protocol-specific verification on the message.
+    message: Vec<u8>,
 }
 
 /// The data required to serialize `frost::SignatureShare`.
@@ -149,7 +165,7 @@ pub struct SigningPackage {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SignatureShare {
     /// This participant's signature over the message: `frost::SignatureShare.signature`
-    signature: Scalar,
+    signature: SignatureResponse,
 }
 
 /// The data required to serialize a successful output from `frost::aggregate()`.
@@ -158,8 +174,8 @@ pub struct SignatureShare {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AggregateSignature {
     /// The aggregated group commitment: `Signature<SpendAuth>.r_bytes` returned by `frost::aggregate`
-    group_commitment: AffinePoint,
+    group_commitment: GroupCommitment,
     /// A plain Schnorr signature created by summing all the signature shares:
     /// `Signature<SpendAuth>.s_bytes` returned by `frost::aggregate`
-    schnorr_signature: Scalar,
+    schnorr_signature: SignatureResponse,
 }
