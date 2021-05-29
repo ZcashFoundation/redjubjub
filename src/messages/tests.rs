@@ -373,7 +373,7 @@ fn validate_signingpackage() {
         binding: Commitment(jubjub::AffinePoint::from(commitment2[0].binding).to_bytes()),
     };
 
-    let mut signing_commitments = HashMap::<ParticipantId, SigningCommitments>::new();
+    let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
     signing_commitments.insert(signer1.clone(), signing_commitment1.clone());
 
     // try with only 1 commitment
@@ -388,7 +388,7 @@ fn validate_signingpackage() {
     );
 
     // add too many commitments
-    let mut big_signing_commitments = HashMap::<ParticipantId, SigningCommitments>::new();
+    let mut big_signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
     for i in 0..constants::MAX_SIGNERS as u64 + 1 {
         big_signing_commitments.insert(ParticipantId::Signer(i), signing_commitment1.clone());
     }
@@ -469,7 +469,7 @@ fn serialize_signingpackage() {
         binding: Commitment(jubjub::AffinePoint::from(commitment2[0].binding).to_bytes()),
     };
 
-    let mut signing_commitments = HashMap::<ParticipantId, SigningCommitments>::new();
+    let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
     signing_commitments.insert(signer1.clone(), signing_commitment1.clone());
     signing_commitments.insert(signer2.clone(), signing_commitment2.clone());
 
@@ -504,29 +504,31 @@ fn serialize_signingpackage() {
     assert_eq!(deserialized_receiver, signer1.clone());
 
     // make sure the payload fields are in the right order
-    let _payload_serialized_bytes = bincode::serialize(&payload).unwrap();
-    //let _map_len_serialized: u64 = bincode::deserialize(&payload_serialized_bytes[0..8]).unwrap();
+    let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
 
-    /*
+    let map_len_serialized: u32 = bincode::deserialize(&payload_serialized_bytes[0..12]).unwrap();
+    assert_eq!(map_len_serialized, 2);
+
     // TODO: deserializing the entire HashMap brings problems
-
-    let _deserialized_participant_id_1: ParticipantId =
-        bincode::deserialize(&payload_serialized_bytes[0..8]).unwrap();
-    let _deserialized_signing_commitment_1: SigningCommitments =
-        bincode::deserialize(&payload_serialized_bytes[8..8 + 64]).unwrap();
-    let _deserialized_participant_id_2: ParticipantId =
-        bincode::deserialize(&payload_serialized_bytes[8 + 64..8 + 64 + 8]).unwrap();
-    let _deserialized_signing_commitment_2: SigningCommitments =
-        bincode::deserialize(&payload_serialized_bytes[8 + 64 + 8..8 + 128 + 8]).unwrap();
+    let deserialized_participant_id_1: ParticipantId =
+        bincode::deserialize(&payload_serialized_bytes[12..20]).unwrap();
+    let deserialized_signing_commitment_1: SigningCommitments =
+        bincode::deserialize(&payload_serialized_bytes[20..20 + 64]).unwrap();
+    let deserialized_participant_id_2: ParticipantId =
+        bincode::deserialize(&payload_serialized_bytes[20 + 64..20 + 64 + 8]).unwrap();
+    let deserialized_signing_commitment_2: SigningCommitments =
+        bincode::deserialize(&payload_serialized_bytes[20 + 64 + 8..20 + 128 + 8]).unwrap();
     let deserialized_message: Vec<u8> = bincode::deserialize(
-        &payload_serialized_bytes[8 + 128 + 8..payload_serialized_bytes.len()],
+        &payload_serialized_bytes
+            [payload_serialized_bytes.len() - 12..payload_serialized_bytes.len()],
     )
     .unwrap();
 
-
-    // TODO: We can't gauarantee the order of the entiries in the hashmap so don't test them by now.
+    assert_eq!(deserialized_participant_id_1, signer1);
+    assert_eq!(deserialized_signing_commitment_1, signing_commitment1);
+    assert_eq!(deserialized_participant_id_2, signer2);
+    assert_eq!(deserialized_signing_commitment_2, signing_commitment2);
     assert_eq!(deserialized_message, "hola".as_bytes().to_vec());
-    */
 
     // make sure the message fields are in the right order
     let message_serialized_bytes = bincode::serialize(&message).unwrap();

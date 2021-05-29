@@ -6,7 +6,7 @@
 use crate::{frost, verification_key, SpendAuth};
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 mod constants;
 mod serialize;
@@ -118,7 +118,7 @@ pub struct MsgVersion(u8);
 /// ID `i` will be given a share with value `f(i)`.
 /// Since a DKG may be implemented in the future, we recommend that the ID `0` be declared invalid."
 /// https://raw.githubusercontent.com/ZcashFoundation/redjubjub/main/zcash-frost-audit-report-20210323.pdf#d
-#[derive(PartialEq, Eq, Hash, PartialOrd, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Debug, Clone, Ord)]
 pub enum ParticipantId {
     /// A serialized participant ID for a signer.
     ///
@@ -172,7 +172,7 @@ pub struct SigningPackage {
     /// unique participant identifiers: `frost::SigningPackage.signing_commitments`
     ///
     /// Signing packages that contain duplicate or missing `ParticipantID`s are invalid.
-    signing_commitments: HashMap<ParticipantId, SigningCommitments>,
+    signing_commitments: BTreeMap<ParticipantId, SigningCommitments>,
     /// The message to be signed: `frost::SigningPackage.message`.
     ///
     /// Each signer should perform protocol-specific verification on the message.
