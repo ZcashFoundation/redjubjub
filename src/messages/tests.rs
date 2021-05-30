@@ -19,8 +19,8 @@ fn validate_version() {
 
     let header = Header {
         version: MsgVersion(INVALID_VERSION),
-        sender: dealer.clone(),
-        receiver: signer1.clone(),
+        sender: dealer,
+        receiver: signer1,
     };
 
     let validate = Validate::validate(&header);
@@ -42,7 +42,7 @@ fn validate_sender_receiver() {
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1.clone(),
+        sender: signer1,
         receiver: signer1,
     };
 
@@ -64,11 +64,11 @@ fn validate_sharepackage() {
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1.clone(),
-        receiver: signer2.clone(),
+        sender: signer1,
+        receiver: signer2,
     };
     let validate_header = Validate::validate(&header);
-    let valid_header = validate_header.expect("a valid header").clone();
+    let valid_header = validate_header.expect("a valid header");
 
     let group_public = VerificationKey::from(
         verification_key::VerificationKey::try_from(shares[0].group_public.bytes).unwrap(),
@@ -84,14 +84,14 @@ fn validate_sharepackage() {
 
     let payload = Payload::SharePackage(SharePackage {
         group_public,
-        secret_share: secret_share.clone(),
+        secret_share: secret_share,
         share_commitment: share_commitment.clone(),
     });
     let validate_payload = Validate::validate(&payload);
     let valid_payload = validate_payload.expect("a valid payload").clone();
 
     let message = Message {
-        header: valid_header,
+        header: *valid_header,
         payload: valid_payload.clone(),
     };
 
@@ -101,14 +101,14 @@ fn validate_sharepackage() {
     // change the header
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: dealer.clone(),
-        receiver: aggregator.clone(),
+        sender: dealer,
+        receiver: aggregator,
     };
     let validate_header = Validate::validate(&header);
-    let valid_header = validate_header.expect("a valid header").clone();
+    let valid_header = validate_header.expect("a valid header");
 
     let message = Message {
-        header: valid_header,
+        header: *valid_header,
         payload: valid_payload,
     };
 
@@ -118,7 +118,7 @@ fn validate_sharepackage() {
     //
     let payload = Payload::SharePackage(SharePackage {
         group_public,
-        secret_share: secret_share.clone(),
+        secret_share: secret_share,
         share_commitment: share_commitment.clone()[0..1].to_vec(),
     });
     let validate_payload = Validate::validate(&payload);
@@ -152,8 +152,8 @@ fn serialize_sharepackage() {
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: dealer.clone(),
-        receiver: signer1.clone(),
+        sender: dealer,
+        receiver: signer1,
     };
 
     let group_public = VerificationKey::from(
@@ -175,7 +175,7 @@ fn serialize_sharepackage() {
     });
 
     let message = Message {
-        header: header.clone(),
+        header: header,
         payload: payload.clone(),
     };
 
@@ -196,8 +196,8 @@ fn serialize_sharepackage() {
     let deserialized_receiver: ParticipantId =
         bincode::deserialize(&header_serialized_bytes[9..17]).unwrap();
     assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
-    assert_eq!(deserialized_sender, dealer.clone());
-    assert_eq!(deserialized_receiver, signer1.clone());
+    assert_eq!(deserialized_sender, dealer);
+    assert_eq!(deserialized_receiver, signer1);
 
     // make sure the payload fields are in the right order
     let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
@@ -235,8 +235,8 @@ fn validate_signingcommitments() {
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator.clone(),
-        receiver: signer2.clone(),
+        sender: aggregator,
+        receiver: signer2,
     };
 
     let payload = Payload::SigningCommitments(SigningCommitments {
@@ -255,8 +255,8 @@ fn validate_signingcommitments() {
     // change the header
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1.clone(),
-        receiver: signer2.clone(),
+        sender: signer1,
+        receiver: signer2,
     };
 
     let message = Message {
@@ -270,8 +270,8 @@ fn validate_signingcommitments() {
     // change the header to valid
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1.clone(),
-        receiver: aggregator.clone(),
+        sender: signer1,
+        receiver: aggregator,
     };
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
@@ -291,8 +291,8 @@ fn serialize_signingcommitments() {
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator.clone(),
-        receiver: signer1.clone(),
+        sender: aggregator,
+        receiver: signer1,
     };
 
     let hiding = Commitment(jubjub::AffinePoint::from(commitment[0].hiding).to_bytes());
@@ -301,7 +301,7 @@ fn serialize_signingcommitments() {
     let payload = Payload::SigningCommitments(SigningCommitments { hiding, binding });
 
     let message = Message {
-        header: header.clone(),
+        header: header,
         payload: payload.clone(),
     };
 
@@ -322,8 +322,8 @@ fn serialize_signingcommitments() {
     let deserialized_receiver: ParticipantId =
         bincode::deserialize(&header_serialized_bytes[9..17]).unwrap();
     assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
-    assert_eq!(deserialized_sender, aggregator.clone());
-    assert_eq!(deserialized_receiver, signer1.clone());
+    assert_eq!(deserialized_sender, aggregator);
+    assert_eq!(deserialized_receiver, signer1);
 
     // make sure the payload fields are in the right order
     let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
@@ -360,8 +360,8 @@ fn validate_signingpackage() {
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1.clone(),
-        receiver: signer2.clone(),
+        sender: signer1,
+        receiver: signer2,
     };
 
     let signing_commitment1 = SigningCommitments {
@@ -374,7 +374,7 @@ fn validate_signingpackage() {
     };
 
     let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(signer1.clone(), signing_commitment1.clone());
+    signing_commitments.insert(signer1, signing_commitment1.clone());
 
     // try with only 1 commitment
     let payload = Payload::SigningPackage(SigningPackage {
@@ -400,7 +400,7 @@ fn validate_signingpackage() {
     assert_eq!(validate_payload, Err(MsgErr::TooManyCommitments));
 
     // add the other valid commitment
-    signing_commitments.insert(signer2.clone(), signing_commitment2);
+    signing_commitments.insert(signer2, signing_commitment2);
 
     let big_message = [0u8; constants::ZCASH_MAX_PROTOCOL_MESSAGE_LEN + 1].to_vec();
     let payload = Payload::SigningPackage(SigningPackage {
@@ -420,12 +420,12 @@ fn validate_signingpackage() {
     // change header
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator.clone(),
-        receiver: dealer.clone(),
+        sender: aggregator,
+        receiver: dealer,
     };
 
     let message = Message {
-        header: header.clone(),
+        header: header,
         payload: payload.clone(),
     };
 
@@ -434,8 +434,8 @@ fn validate_signingpackage() {
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator.clone(),
-        receiver: signer1.clone(),
+        sender: aggregator,
+        receiver: signer1,
     };
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
@@ -456,8 +456,8 @@ fn serialize_signingpackage() {
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator.clone(),
-        receiver: signer1.clone(),
+        sender: aggregator,
+        receiver: signer1,
     };
 
     let signing_commitment1 = SigningCommitments {
@@ -470,8 +470,8 @@ fn serialize_signingpackage() {
     };
 
     let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(signer1.clone(), signing_commitment1.clone());
-    signing_commitments.insert(signer2.clone(), signing_commitment2.clone());
+    signing_commitments.insert(signer1, signing_commitment1.clone());
+    signing_commitments.insert(signer2, signing_commitment2.clone());
 
     let payload = Payload::SigningPackage(SigningPackage {
         signing_commitments: signing_commitments.clone(),
@@ -479,7 +479,7 @@ fn serialize_signingpackage() {
     });
 
     let message = Message {
-        header: header.clone(),
+        header: header,
         payload: payload.clone(),
     };
 
@@ -500,8 +500,8 @@ fn serialize_signingpackage() {
     let deserialized_receiver: ParticipantId =
         bincode::deserialize(&header_serialized_bytes[9..17]).unwrap();
     assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
-    assert_eq!(deserialized_sender, aggregator.clone());
-    assert_eq!(deserialized_receiver, signer1.clone());
+    assert_eq!(deserialized_sender, aggregator);
+    assert_eq!(deserialized_receiver, signer1);
 
     // make sure the payload fields are in the right order
     let payload_serialized_bytes = bincode::serialize(&payload).unwrap();

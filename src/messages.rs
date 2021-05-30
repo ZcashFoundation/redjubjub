@@ -45,7 +45,7 @@ pub struct GroupCommitment([u8; 32]);
 ///
 /// The serialization design specifies that `SignatureResponse` is a `Scalar` that uses:
 /// "a 32-byte little-endian canonical representation".
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 pub struct SignatureResponse([u8; 32]);
 
 /// Define our own `VerificationKey` type instead of using `frost::VerificationKey<SpendAuth>`.
@@ -71,7 +71,7 @@ pub struct Message {
 /// The data required to serialize the common header fields for every message.
 ///
 /// Note: the `msg_type` is derived from the `payload` enum variant.
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
 pub struct Header {
     version: MsgVersion,
     sender: ParticipantId,
@@ -101,7 +101,7 @@ enum MsgType {
 }
 
 /// The numeric values used to identify the protocol version during serialization.
-#[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct MsgVersion(u8);
 
 /// The numeric values used to identify each participant during serialization.
@@ -118,7 +118,7 @@ pub struct MsgVersion(u8);
 /// ID `i` will be given a share with value `f(i)`.
 /// Since a DKG may be implemented in the future, we recommend that the ID `0` be declared invalid."
 /// https://raw.githubusercontent.com/ZcashFoundation/redjubjub/main/zcash-frost-audit-report-20210323.pdf#d
-#[derive(PartialEq, Eq, Hash, PartialOrd, Debug, Clone, Ord)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Debug, Copy, Clone, Ord)]
 pub enum ParticipantId {
     /// A serialized participant ID for a signer.
     ///
