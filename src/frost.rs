@@ -230,6 +230,29 @@ fn verify_share(share: &Share) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// Generates the identifier for a given participant.
+///
+/// The identifier is generated as follows:
+/// id = H("FROST_id", g^s, i), where:
+/// - g is the basepoint,
+/// - s is the secret chosen by the dealer, and
+/// - i is the index of the participant.
+///
+/// The actual identifier consists of the first 64 bits of the resulting hash.
+fn generate_id(secret: &Secret, index: u8) -> u64 {
+    use std::convert::TryInto;
+
+    let mut hasher = HStar::default();
+
+    hasher
+        .update("FROST_id".as_bytes())
+        .update(jubjub::AffinePoint::from(SpendAuth::basepoint() * secret.0).to_bytes())
+        .update(index.to_be_bytes());
+
+    let id_bytes = hasher.finalize().to_bytes();
+
+    u64::from_be_bytes(id_bytes[0..8].try_into().expect("slice of incorrect size"))
+}
 /// Creates secret shares for a given secret.
 ///
 /// This function accepts a secret from which shares are generated. While in
@@ -251,8 +274,6 @@ fn generate_shares<R: RngCore + CryptoRng>(
     threshold: u8,
     mut rng: R,
 ) -> Result<Vec<Share>, &'static str> {
-    use std::convert::TryInto;
-
     if threshold < 1 {
         return Err("Threshold cannot be 0");
     }
@@ -291,25 +312,11 @@ fn generate_shares<R: RngCore + CryptoRng>(
         )));
     }
 
-    // Participants' identifiers are generated as follows:
-    // id = H("FROST_id", g^s, i), where:
-    // g is the basepoint,
-    // s is the secret chosen by the dealer, and
-    // i is the index of the participant.
-    // The hash is finalized in the loop that follows.
-    let mut hasher = HStar::default();
-    hasher
-        .update("FROST_id".as_bytes())
-        .update(jubjub::AffinePoint::from(SpendAuth::basepoint() * secret.0).to_bytes());
-
     // Evaluate the polynomial with `secret` as the constant term
     // and `coeffs` as the other coefficients at the point x=share_index,
     // using Horner's method.
     for index in 1..numshares + 1 {
-        // The actual identifier consists of the first 64 bits of the resulting hash.
-        let id_bytes = hasher.update(index.to_be_bytes()).finalize().to_bytes();
-        let id = u64::from_be_bytes(id_bytes[0..8].try_into().expect("slice of incorrect size"));
-
+        let id = generate_id(secret, index);
         let scalar_id = Scalar::from(id);
         let mut value = Scalar::zero();
 
