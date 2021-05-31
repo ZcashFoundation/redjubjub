@@ -53,7 +53,7 @@ fn validate_sender_receiver() {
 #[test]
 fn validate_sharepackage() {
     let mut rng = thread_rng();
-    let numsigners = 3;
+    let numsigners = 2;
     let threshold = 2;
     let (shares, _pubkeys) = frost::keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
 
@@ -74,18 +74,28 @@ fn validate_sharepackage() {
         verification_key::VerificationKey::try_from(shares[0].group_public.bytes).unwrap(),
     );
     let secret_share = Secret(shares[0].share.value.0.to_bytes());
-    let mut share_commitment: Vec<Commitment> = shares[0]
+    let mut share_commitment1: BTreeMap<ParticipantId, Commitment> = shares[0]
         .share
         .commitment
         .0
         .iter()
-        .map(|c| Commitment::from(c.clone()))
+        .map(|c| (signer1, Commitment::from(c.clone())))
         .collect();
+    // this is ugly, merge this with the iteration above
+    let share_commitment2: BTreeMap<ParticipantId, Commitment> = shares[1]
+        .share
+        .commitment
+        .0
+        .iter()
+        .map(|c| (signer2, Commitment::from(c.clone())))
+        .collect();
+
+    share_commitment1.extend(&share_commitment2);
 
     let payload = Payload::SharePackage(SharePackage {
         group_public,
         secret_share: secret_share,
-        share_commitment: share_commitment.clone(),
+        share_commitment: share_commitment1.clone(),
     });
     let validate_payload = Validate::validate(&payload);
     let valid_payload = validate_payload.expect("a valid payload").clone();
@@ -119,7 +129,7 @@ fn validate_sharepackage() {
     let payload = Payload::SharePackage(SharePackage {
         group_public,
         secret_share: secret_share,
-        share_commitment: share_commitment.clone()[0..1].to_vec(),
+        share_commitment: share_commitment2.clone(),
     });
     let validate_payload = Validate::validate(&payload);
     assert_eq!(
@@ -127,14 +137,16 @@ fn validate_sharepackage() {
         Err(MsgErr::NotEnoughCommitments(constants::MIN_SIGNERS))
     );
 
-    share_commitment.resize(
-        usize::try_from(constants::MAX_SIGNERS as u64 + 1).unwrap(),
-        share_commitment.clone()[0],
-    );
+    for i in 2..constants::MAX_SIGNERS as u64 + 1 {
+        share_commitment1.insert(
+            ParticipantId::Signer(i),
+            share_commitment1.clone()[&signer1],
+        );
+    }
     let payload = Payload::SharePackage(SharePackage {
         group_public,
         secret_share,
-        share_commitment,
+        share_commitment: share_commitment1,
     });
     let validate_payload = Validate::validate(&payload);
     assert_eq!(validate_payload, Err(MsgErr::TooManyCommitments));
@@ -160,12 +172,12 @@ fn serialize_sharepackage() {
         verification_key::VerificationKey::try_from(shares[0].group_public.bytes).unwrap(),
     );
     let secret_share = Secret(shares[0].share.value.0.to_bytes());
-    let share_commitment: Vec<Commitment> = shares[0]
+    let share_commitment: BTreeMap<ParticipantId, Commitment> = shares[0]
         .share
         .commitment
         .0
         .iter()
-        .map(|c| Commitment::from(c.clone()))
+        .map(|c| (signer1, Commitment::from(c.clone())))
         .collect();
 
     let payload = Payload::SharePackage(SharePackage {
@@ -205,7 +217,7 @@ fn serialize_sharepackage() {
         bincode::deserialize(&payload_serialized_bytes[4..36]).unwrap();
     let deserialized_secret_share: Secret =
         bincode::deserialize(&payload_serialized_bytes[36..68]).unwrap();
-    let deserialized_share_commitment: Vec<Commitment> =
+    let deserialized_share_commitment: BTreeMap<ParticipantId, Commitment> =
         bincode::deserialize(&payload_serialized_bytes[68..payload_serialized_bytes.len()])
             .unwrap();
     assert_eq!(deserialized_group_public, group_public);

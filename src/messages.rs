@@ -157,7 +157,9 @@ pub struct SharePackage {
     /// The commitments to the coefficients for our secret polynomial _f_,
     /// used to generate participants' key shares. Participants use these to perform
     /// verifiable secret sharing.
-    share_commitment: Vec<Commitment>,
+    /// Share packages that contain duplicate or missing `ParticipantId`s are invalid.
+    /// `ParticipantId`s must be serialized in ascending numeric order.
+    share_commitment: BTreeMap<ParticipantId, Commitment>,
 }
 
 /// The data required to serialize `frost::SigningCommitments`.
