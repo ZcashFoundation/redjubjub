@@ -366,7 +366,8 @@ impl SigningNonces {
 /// SigningCommitment can be used for exactly *one* signature.
 #[derive(Copy, Clone)]
 pub struct SigningCommitments {
-    index: u64,
+    /// The participant index
+    pub(crate) index: u64,
     /// The hiding point.
     pub(crate) hiding: jubjub::ExtendedPoint,
     /// The binding point.
@@ -393,7 +394,7 @@ pub struct SigningPackage {
     /// Message which each participant will sign.
     ///
     /// Each signer should perform protocol-specific verification on the message.
-    pub message: &'static [u8],
+    pub message: Vec<u8>,
 }
 
 /// A representation of a single signature used in FROST structures and messages.
@@ -476,7 +477,9 @@ fn gen_rho_i(index: u64, signing_package: &SigningPackage) -> Scalar {
     // binding factor, we should hash our input message first. Our 'standard'
     // hash is HStar, which uses a domain separator already, and is the same one
     // that generates the binding factor.
-    let message_hash = HStar::default().update(signing_package.message).finalize();
+    let message_hash = HStar::default()
+        .update(signing_package.message.as_slice())
+        .finalize();
 
     let mut hasher = HStar::default();
     hasher
@@ -531,7 +534,7 @@ fn gen_challenge(
     HStar::default()
         .update(group_commitment_bytes)
         .update(group_public.bytes.bytes)
-        .update(signing_package.message)
+        .update(signing_package.message.as_slice())
         .finalize()
 }
 

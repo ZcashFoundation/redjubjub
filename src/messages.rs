@@ -130,6 +130,16 @@ pub enum ParticipantId {
     Aggregator,
 }
 
+impl From<ParticipantId> for u64 {
+    fn from(value: ParticipantId) -> u64 {
+        match value {
+            ParticipantId::Signer(id) => id,
+            ParticipantId::Dealer => constants::DEALER_PARTICIPANT_ID,
+            ParticipantId::Aggregator => constants::AGGREGATOR_PARTICIPANT_ID,
+        }
+    }
+}
+
 /// The data required to serialize `frost::SharePackage`.
 ///
 /// The dealer sends this message to each signer for this round.
@@ -177,6 +187,30 @@ pub struct SigningPackage {
     ///
     /// Each signer should perform protocol-specific verification on the message.
     message: Vec<u8>,
+}
+
+impl From<SigningPackage> for frost::SigningPackage {
+    fn from(value: SigningPackage) -> frost::SigningPackage {
+        let mut signing_commitments = Vec::new();
+        for (participant_id, commitment) in &value.signing_commitments {
+            let s = frost::SigningCommitments {
+                index: u64::from(*participant_id),
+                // Todo: The `from_bytes()` response is a `CtOption` so we have to `unwrap()`
+                hiding: jubjub::ExtendedPoint::from(
+                    jubjub::AffinePoint::from_bytes(commitment.hiding.0).unwrap(),
+                ),
+                binding: jubjub::ExtendedPoint::from(
+                    jubjub::AffinePoint::from_bytes(commitment.binding.0).unwrap(),
+                ),
+            };
+            signing_commitments.push(s);
+        }
+
+        frost::SigningPackage {
+            signing_commitments,
+            message: value.message,
+        }
+    }
 }
 
 /// The data required to serialize `frost::SignatureShare`.
