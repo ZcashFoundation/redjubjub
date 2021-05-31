@@ -638,3 +638,78 @@ fn validate_signatureshare() {
 
     assert_eq!(validate_message, None);
 }
+
+#[test]
+fn serialize_signatureshare() {
+    let mut rng = thread_rng();
+    let signer1 = ParticipantId::Signer(0);
+    let signer2 = ParticipantId::Signer(1);
+    let signer1_id = 0u64;
+    let signer2_id = 1u64;
+    let aggregator = ParticipantId::Aggregator;
+    let num_signers = 2;
+    let threshold = 1;
+
+    // signers and aggergator should have this data from `SharePackage`
+    let (shares, _pubkeys) = frost::keygen_with_dealer(num_signers, threshold, &mut rng).unwrap();
+
+    // create a signing package, this is done in the aggregator side.
+    // the signrs should have this data from `SigningPackage`
+    let (nonce1, commitment1) = frost::preprocess(1, signer1_id, &mut rng);
+    let (_nonce2, commitment2) = frost::preprocess(1, signer2_id, &mut rng);
+
+    let signing_commitment1 = SigningCommitments {
+        hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
+        binding: Commitment(jubjub::AffinePoint::from(commitment1[0].binding).to_bytes()),
+    };
+    let signing_commitment2 = SigningCommitments {
+        hiding: Commitment(jubjub::AffinePoint::from(commitment2[0].hiding).to_bytes()),
+        binding: Commitment(jubjub::AffinePoint::from(commitment2[0].binding).to_bytes()),
+    };
+
+    let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
+    signing_commitments.insert(signer1, signing_commitment1.clone());
+    signing_commitments.insert(signer2, signing_commitment2.clone());
+
+    let signing_package = frost::SigningPackage::from(SigningPackage {
+        signing_commitments: signing_commitments.clone(),
+        message: "hola".as_bytes().to_vec(),
+    });
+
+    // here we get started with the `SignatureShare` message.
+    let signature_share = frost::sign(&signing_package, nonce1[0], &shares[0]).unwrap();
+
+    // valid header
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: signer1,
+        receiver: aggregator,
+    };
+
+    let payload = Payload::SignatureShare(SignatureShare {
+        signature: SignatureResponse(signature_share.signature.0.to_bytes()),
+    });
+
+    let message = Message {
+        header: header,
+        payload: payload.clone(),
+    };
+
+    let serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_bytes: Message = bincode::deserialize(&serialized_bytes).unwrap();
+    assert_eq!(message, deserialized_bytes);
+
+    let serialized_json = serde_json::to_string(&message).unwrap();
+    let deserialized_json: Message = serde_json::from_str(serialized_json.as_str()).unwrap();
+    assert_eq!(message, deserialized_json);
+
+    // make sure the message fields are in the right order
+    let message_serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_header: Header =
+        bincode::deserialize(&message_serialized_bytes[0..17]).unwrap();
+    let deserialized_payload: Payload =
+        bincode::deserialize(&message_serialized_bytes[17..message_serialized_bytes.len()])
+            .unwrap();
+    assert_eq!(deserialized_header, header);
+    assert_eq!(deserialized_payload, payload);
+}
