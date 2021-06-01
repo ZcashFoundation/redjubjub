@@ -227,6 +227,29 @@ fn verify_share(share: &Share) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// Generates the identifier for a given participant.
+///
+/// The identifier is generated as follows:
+/// id = H("FROST_id", g^s, i), where:
+/// - g is the basepoint,
+/// - s is the secret chosen by the dealer, and
+/// - i is the index of the participant.
+///
+/// The actual identifier consists of the first 64 bits of the resulting hash.
+fn generate_id(secret: &Secret, index: u8) -> u64 {
+    use std::convert::TryInto;
+
+    let mut hasher = HStar::default();
+
+    hasher
+        .update("FROST_id".as_bytes())
+        .update(jubjub::AffinePoint::from(SpendAuth::basepoint() * secret.0).to_bytes())
+        .update(index.to_le_bytes());
+
+    let id_bytes = hasher.finalize().to_bytes();
+
+    u64::from_le_bytes(id_bytes[0..8].try_into().expect("slice of incorrect size"))
+}
 /// Creates secret shares for a given secret.
 ///
 /// This function accepts a secret from which shares are generated. While in
@@ -290,18 +313,19 @@ fn generate_shares<R: RngCore + CryptoRng>(
     // and `coeffs` as the other coefficients at the point x=share_index,
     // using Horner's method.
     for index in 1..numshares + 1 {
-        let scalar_index = Scalar::from(index as u64);
+        let id = generate_id(secret, index);
+        let scalar_id = Scalar::from(id);
         let mut value = Scalar::zero();
 
         // Polynomial evaluation, for this index
         for i in (0..numcoeffs).rev() {
             value += &coefficients[i as usize];
-            value *= scalar_index;
+            value *= scalar_id;
         }
         value += secret.0;
 
         shares.push(Share {
-            receiver_index: index as u64,
+            receiver_index: id,
             value: Secret(value),
             commitment: commitment.clone(),
         });
@@ -437,8 +461,8 @@ impl SignatureShare {
 /// perform the first round. Batching entails generating more than one
 /// nonce/commitment pair at a time.  Nonces should be stored in secret storage
 /// for later use, whereas the commitments are published.
-
-/// The number of nonces is limited to 255. This limit can be increased if it 
+///
+/// The number of nonces is limited to 255. This limit can be increased if it
 /// turns out to be too conservative.
 // TODO: Make sure the above is a correct statement, fix if needed in:
 // https://github.com/ZcashFoundation/redjubjub/issues/111
