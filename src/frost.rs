@@ -247,11 +247,11 @@ fn generate_id(secret: &Secret, index: u8) -> u64 {
     hasher
         .update("FROST_id".as_bytes())
         .update(jubjub::AffinePoint::from(SpendAuth::basepoint() * secret.0).to_bytes())
-        .update(index.to_be_bytes());
+        .update(index.to_le_bytes());
 
     let id_bytes = hasher.finalize().to_bytes();
 
-    u64::from_be_bytes(id_bytes[0..8].try_into().expect("slice of incorrect size"))
+    u64::from_le_bytes(id_bytes[0..8].try_into().expect("slice of incorrect size"))
 }
 /// Creates secret shares for a given secret.
 ///
