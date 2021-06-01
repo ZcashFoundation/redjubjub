@@ -14,13 +14,12 @@ fn validate_version() {
     // A version number that we expect to be always invalid
     const INVALID_VERSION: u8 = u8::MAX;
 
-    let signer1 = ParticipantId::Signer(0);
-    let dealer = ParticipantId::Dealer;
+    let setup = basic_setup();
 
     let header = Header {
         version: MsgVersion(INVALID_VERSION),
-        sender: dealer,
-        receiver: signer1,
+        sender: setup.dealer,
+        receiver: setup.signer1,
     };
 
     let validate = Validate::validate(&header);
@@ -28,8 +27,8 @@ fn validate_version() {
 
     let validate = Validate::validate(&Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: dealer,
-        receiver: signer1,
+        sender: setup.dealer,
+        receiver: setup.signer1,
     })
     .err();
 
@@ -38,12 +37,12 @@ fn validate_version() {
 
 #[test]
 fn validate_sender_receiver() {
-    let signer1 = ParticipantId::Signer(0);
+    let setup = basic_setup();
 
     let header = Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1,
-        receiver: signer1,
+        sender: setup.signer1,
+        receiver: setup.signer1,
     };
 
     let validate = Validate::validate(&header);
@@ -52,17 +51,11 @@ fn validate_sender_receiver() {
 
 #[test]
 fn validate_sharepackage() {
-    let mut rng = thread_rng();
-    let numsigners = 2;
-    let threshold = 2;
-    let (shares, _pubkeys) = frost::keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
+    let setup = basic_setup();
+    let (shares, _pubkeys) =
+        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
-    let signer1 = ParticipantId::Signer(0);
-    let signer2 = ParticipantId::Signer(1);
-    let dealer = ParticipantId::Dealer;
-    let aggregator = ParticipantId::Aggregator;
-
-    let header = create_valid_header(signer1, signer2);
+    let header = create_valid_header(setup.signer1, setup.signer2);
 
     let group_public = VerificationKey::from(
         verification_key::VerificationKey::try_from(shares[0].group_public.bytes).unwrap(),
@@ -73,7 +66,7 @@ fn validate_sharepackage() {
         .commitment
         .0
         .iter()
-        .map(|c| (signer1, Commitment::from(c.clone())))
+        .map(|c| (setup.signer1, Commitment::from(c.clone())))
         .collect();
     // this is ugly, merge this with the iteration above
     let share_commitment2: BTreeMap<ParticipantId, Commitment> = shares[1]
@@ -81,7 +74,7 @@ fn validate_sharepackage() {
         .commitment
         .0
         .iter()
-        .map(|c| (signer2, Commitment::from(c.clone())))
+        .map(|c| (setup.signer2, Commitment::from(c.clone())))
         .collect();
 
     share_commitment1.extend(&share_commitment2);
@@ -103,7 +96,7 @@ fn validate_sharepackage() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeDealer));
 
     // change the header
-    let header = create_valid_header(dealer, aggregator);
+    let header = create_valid_header(setup.dealer, setup.aggregator);
 
     let message = Message {
         header,
@@ -125,10 +118,10 @@ fn validate_sharepackage() {
         Err(MsgErr::NotEnoughCommitments(constants::MIN_SIGNERS))
     );
 
-    for i in 2..constants::MAX_SIGNERS as u64 + 1 {
+    for i in 2..constants::MAX_SIGNERS as u64 + 2 {
         share_commitment1.insert(
             ParticipantId::Signer(i),
-            share_commitment1.clone()[&signer1],
+            share_commitment1.clone()[&setup.signer1],
         );
     }
     let payload = Payload::SharePackage(SharePackage {
@@ -142,15 +135,12 @@ fn validate_sharepackage() {
 
 #[test]
 fn serialize_sharepackage() {
-    let mut rng = thread_rng();
-    let numsigners = 3;
-    let threshold = 2;
-    let (shares, _pubkeys) = frost::keygen_with_dealer(numsigners, threshold, &mut rng).unwrap();
+    let setup = basic_setup();
 
-    let signer1 = ParticipantId::Signer(0);
-    let dealer = ParticipantId::Dealer;
+    let (shares, _pubkeys) =
+        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
-    let header = create_valid_header(dealer, signer1);
+    let header = create_valid_header(setup.dealer, setup.signer1);
 
     let group_public = VerificationKey::from(
         verification_key::VerificationKey::try_from(shares[0].group_public.bytes).unwrap(),
@@ -161,7 +151,7 @@ fn serialize_sharepackage() {
         .commitment
         .0
         .iter()
-        .map(|c| (signer1, Commitment::from(c.clone())))
+        .map(|c| (setup.signer1, Commitment::from(c.clone())))
         .collect();
 
     let payload = Payload::SharePackage(SharePackage {
@@ -185,7 +175,7 @@ fn serialize_sharepackage() {
 
     // make sure the header fields are in the right order
     let header_serialized_bytes = bincode::serialize(&header).unwrap();
-    serialize_header(header_serialized_bytes, dealer, signer1);
+    serialize_header(header_serialized_bytes, setup.dealer, setup.signer1);
 
     // make sure the payload fields are in the right order
     let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
@@ -213,15 +203,11 @@ fn serialize_sharepackage() {
 
 #[test]
 fn validate_signingcommitments() {
-    let mut rng = thread_rng();
-    let signer1 = ParticipantId::Signer(0);
-    let signer2 = ParticipantId::Signer(1);
-    let signer1_id = 0u64;
-    let aggregator = ParticipantId::Aggregator;
+    let mut setup = basic_setup();
 
-    let (_nonce, commitment) = frost::preprocess(1, signer1_id, &mut rng);
+    let (_nonce, commitment) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
 
-    let header = create_valid_header(aggregator, signer2);
+    let header = create_valid_header(setup.aggregator, setup.signer2);
 
     let payload = Payload::SigningCommitments(SigningCommitments {
         hiding: Commitment(jubjub::AffinePoint::from(commitment[0].hiding).to_bytes()),
@@ -237,7 +223,7 @@ fn validate_signingcommitments() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeSigner));
 
     // change the header
-    let header = create_valid_header(signer1, signer2);
+    let header = create_valid_header(setup.signer1, setup.signer2);
 
     let message = Message {
         header,
@@ -248,7 +234,7 @@ fn validate_signingcommitments() {
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggergator));
 
     // change the header to valid
-    let header = create_valid_header(signer1, aggregator);
+    let header = create_valid_header(setup.signer1, setup.aggregator);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
 
@@ -257,15 +243,11 @@ fn validate_signingcommitments() {
 
 #[test]
 fn serialize_signingcommitments() {
-    let mut rng = thread_rng();
+    let mut setup = basic_setup();
 
-    let signer1 = ParticipantId::Signer(0);
-    let signer1_id = 0u64;
-    let aggregator = ParticipantId::Aggregator;
+    let (_nonce, commitment) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
 
-    let (_nonce, commitment) = frost::preprocess(1, signer1_id, &mut rng);
-
-    let header = create_valid_header(aggregator, signer1);
+    let header = create_valid_header(setup.aggregator, setup.signer1);
 
     let hiding = Commitment(jubjub::AffinePoint::from(commitment[0].hiding).to_bytes());
     let binding = Commitment(jubjub::AffinePoint::from(commitment[0].binding).to_bytes());
@@ -287,7 +269,7 @@ fn serialize_signingcommitments() {
 
     // make sure the header fields are in the right order
     let header_serialized_bytes = bincode::serialize(&header).unwrap();
-    serialize_header(header_serialized_bytes, aggregator, signer1);
+    serialize_header(header_serialized_bytes, setup.aggregator, setup.signer1);
 
     // make sure the payload fields are in the right order
     let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
@@ -311,18 +293,12 @@ fn serialize_signingcommitments() {
 
 #[test]
 fn validate_signingpackage() {
-    let mut rng = thread_rng();
-    let signer1 = ParticipantId::Signer(0);
-    let signer2 = ParticipantId::Signer(1);
-    let signer1_id = 0u64;
-    let signer2_id = 1u64;
-    let aggregator = ParticipantId::Aggregator;
-    let dealer = ParticipantId::Dealer;
+    let mut setup = basic_setup();
 
-    let (_nonce, commitment1) = frost::preprocess(1, signer1_id, &mut rng);
-    let (_nonce, commitment2) = frost::preprocess(1, signer2_id, &mut rng);
+    let (_nonce, commitment1) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
+    let (_nonce, commitment2) = frost::preprocess(1, u64::from(setup.signer2), &mut setup.rng);
 
-    let header = create_valid_header(signer1, signer2);
+    let header = create_valid_header(setup.signer1, setup.signer2);
 
     let signing_commitment1 = SigningCommitments {
         hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
@@ -334,7 +310,7 @@ fn validate_signingpackage() {
     };
 
     let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(signer1, signing_commitment1.clone());
+    signing_commitments.insert(setup.signer1, signing_commitment1.clone());
 
     // try with only 1 commitment
     let payload = Payload::SigningPackage(SigningPackage {
@@ -360,7 +336,7 @@ fn validate_signingpackage() {
     assert_eq!(validate_payload, Err(MsgErr::TooManyCommitments));
 
     // add the other valid commitment
-    signing_commitments.insert(signer2, signing_commitment2);
+    signing_commitments.insert(setup.signer2, signing_commitment2);
 
     let big_message = [0u8; constants::ZCASH_MAX_PROTOCOL_MESSAGE_LEN + 1].to_vec();
     let payload = Payload::SigningPackage(SigningPackage {
@@ -378,7 +354,7 @@ fn validate_signingpackage() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeAggregator));
 
     // change header
-    let header = create_valid_header(aggregator, dealer);
+    let header = create_valid_header(setup.aggregator, setup.dealer);
 
     let message = Message {
         header: header,
@@ -388,7 +364,7 @@ fn validate_signingpackage() {
     let validate_message = Validate::validate(&message);
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
 
-    let header = create_valid_header(aggregator, signer1);
+    let header = create_valid_header(setup.aggregator, setup.signer1);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
     assert_eq!(validate_message, None);
@@ -396,17 +372,12 @@ fn validate_signingpackage() {
 
 #[test]
 fn serialize_signingpackage() {
-    let mut rng = thread_rng();
-    let signer1 = ParticipantId::Signer(0);
-    let signer2 = ParticipantId::Signer(1);
-    let signer1_id = 0u64;
-    let signer2_id = 1u64;
-    let aggregator = ParticipantId::Aggregator;
+    let mut setup = basic_setup();
 
-    let (_nonce, commitment1) = frost::preprocess(1, signer1_id, &mut rng);
-    let (_nonce, commitment2) = frost::preprocess(1, signer2_id, &mut rng);
+    let (_nonce, commitment1) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
+    let (_nonce, commitment2) = frost::preprocess(1, u64::from(setup.signer2), &mut setup.rng);
 
-    let header = create_valid_header(aggregator, signer1);
+    let header = create_valid_header(setup.aggregator, setup.signer1);
 
     let signing_commitment1 = SigningCommitments {
         hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
@@ -418,8 +389,8 @@ fn serialize_signingpackage() {
     };
 
     let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(signer1, signing_commitment1.clone());
-    signing_commitments.insert(signer2, signing_commitment2.clone());
+    signing_commitments.insert(setup.signer1, signing_commitment1.clone());
+    signing_commitments.insert(setup.signer2, signing_commitment2.clone());
 
     let payload = Payload::SigningPackage(SigningPackage {
         signing_commitments: signing_commitments.clone(),
@@ -441,7 +412,7 @@ fn serialize_signingpackage() {
 
     // make sure the header fields are in the right order
     let header_serialized_bytes = bincode::serialize(&header).unwrap();
-    serialize_header(header_serialized_bytes, aggregator, signer1);
+    serialize_header(header_serialized_bytes, setup.aggregator, setup.signer1);
 
     // make sure the payload fields are in the right order
     let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
@@ -464,9 +435,9 @@ fn serialize_signingpackage() {
     )
     .unwrap();
 
-    assert_eq!(deserialized_participant_id_1, signer1);
+    assert_eq!(deserialized_participant_id_1, setup.signer1);
     assert_eq!(deserialized_signing_commitment_1, signing_commitment1);
-    assert_eq!(deserialized_participant_id_2, signer2);
+    assert_eq!(deserialized_participant_id_2, setup.signer2);
     assert_eq!(deserialized_signing_commitment_2, signing_commitment2);
     assert_eq!(deserialized_message, "hola".as_bytes().to_vec());
 
@@ -483,22 +454,16 @@ fn serialize_signingpackage() {
 
 #[test]
 fn validate_signatureshare() {
-    let mut rng = thread_rng();
-    let signer1 = ParticipantId::Signer(0);
-    let signer2 = ParticipantId::Signer(1);
-    let signer1_id = 0u64;
-    let signer2_id = 1u64;
-    let aggregator = ParticipantId::Aggregator;
-    let num_signers = 2;
-    let threshold = 1;
+    let mut setup = basic_setup();
 
     // signers and aggergator should have this data from `SharePackage`
-    let (shares, _pubkeys) = frost::keygen_with_dealer(num_signers, threshold, &mut rng).unwrap();
+    let (shares, _pubkeys) =
+        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
     // create a signing package, this is done in the aggregator side.
     // the signrs should have this data from `SigningPackage`
-    let (nonce1, commitment1) = frost::preprocess(1, signer1_id, &mut rng);
-    let (_nonce2, commitment2) = frost::preprocess(1, signer2_id, &mut rng);
+    let (nonce1, commitment1) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
+    let (_nonce2, commitment2) = frost::preprocess(1, u64::from(setup.signer2), &mut setup.rng);
 
     let signing_commitment1 = SigningCommitments {
         hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
@@ -510,8 +475,8 @@ fn validate_signatureshare() {
     };
 
     let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(signer1, signing_commitment1.clone());
-    signing_commitments.insert(signer2, signing_commitment2.clone());
+    signing_commitments.insert(setup.signer1, signing_commitment1.clone());
+    signing_commitments.insert(setup.signer2, signing_commitment2.clone());
 
     let signing_package = frost::SigningPackage::from(SigningPackage {
         signing_commitments: signing_commitments.clone(),
@@ -522,7 +487,7 @@ fn validate_signatureshare() {
     let signature_share = frost::sign(&signing_package, nonce1[0], &shares[0]).unwrap();
 
     // this header is invalid
-    let header = create_valid_header(aggregator, signer1);
+    let header = create_valid_header(setup.aggregator, setup.signer1);
 
     let payload = Payload::SignatureShare(SignatureShare {
         signature: SignatureResponse(signature_share.signature.0.to_bytes()),
@@ -537,7 +502,7 @@ fn validate_signatureshare() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeSigner));
 
     // change the header, still invalid.
-    let header = create_valid_header(signer1, signer2);
+    let header = create_valid_header(setup.signer1, setup.signer2);
 
     let message = Message {
         header,
@@ -548,7 +513,7 @@ fn validate_signatureshare() {
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggergator));
 
     // change the header to valid
-    let header = create_valid_header(signer1, aggregator);
+    let header = create_valid_header(setup.signer1, setup.aggregator);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
 
@@ -557,22 +522,16 @@ fn validate_signatureshare() {
 
 #[test]
 fn serialize_signatureshare() {
-    let mut rng = thread_rng();
-    let signer1 = ParticipantId::Signer(0);
-    let signer2 = ParticipantId::Signer(1);
-    let signer1_id = 0u64;
-    let signer2_id = 1u64;
-    let aggregator = ParticipantId::Aggregator;
-    let num_signers = 2;
-    let threshold = 1;
+    let mut setup = basic_setup();
 
     // signers and aggergator should have this data from `SharePackage`
-    let (shares, _pubkeys) = frost::keygen_with_dealer(num_signers, threshold, &mut rng).unwrap();
+    let (shares, _pubkeys) =
+        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
     // create a signing package, this is done in the aggregator side.
-    // the signrs should have this data from `SigningPackage`
-    let (nonce1, commitment1) = frost::preprocess(1, signer1_id, &mut rng);
-    let (_nonce2, commitment2) = frost::preprocess(1, signer2_id, &mut rng);
+    // the signers should have this data from `SigningPackage`
+    let (nonce1, commitment1) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
+    let (_nonce2, commitment2) = frost::preprocess(1, u64::from(setup.signer2), &mut setup.rng);
 
     let signing_commitment1 = SigningCommitments {
         hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
@@ -584,8 +543,8 @@ fn serialize_signatureshare() {
     };
 
     let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(signer1, signing_commitment1.clone());
-    signing_commitments.insert(signer2, signing_commitment2.clone());
+    signing_commitments.insert(setup.signer1, signing_commitment1.clone());
+    signing_commitments.insert(setup.signer2, signing_commitment2.clone());
 
     let signing_package = frost::SigningPackage::from(SigningPackage {
         signing_commitments: signing_commitments.clone(),
@@ -596,7 +555,7 @@ fn serialize_signatureshare() {
     let signature_share = frost::sign(&signing_package, nonce1[0], &shares[0]).unwrap();
 
     // valid header
-    let header = create_valid_header(signer1, aggregator);
+    let header = create_valid_header(setup.signer1, setup.aggregator);
 
     let payload = Payload::SignatureShare(SignatureShare {
         signature: SignatureResponse(signature_share.signature.0.to_bytes()),
@@ -616,7 +575,7 @@ fn serialize_signatureshare() {
     assert_eq!(message, deserialized_json);
 
     let header_serialized_bytes = bincode::serialize(&header).unwrap();
-    serialize_header(header_serialized_bytes, signer1, aggregator);
+    serialize_header(header_serialized_bytes, setup.signer1, setup.aggregator);
 
     // make sure the message fields are in the right order
     let message_serialized_bytes = bincode::serialize(&message).unwrap();
@@ -631,29 +590,27 @@ fn serialize_signatureshare() {
 
 #[test]
 fn validate_aggregatesignature() {
-    let mut rng = thread_rng();
-    let signer1 = ParticipantId::Signer(1);
-    let aggregator = ParticipantId::Aggregator;
-    let dealer = ParticipantId::Dealer;
-    let num_signers = 3;
-    let threshold = 2;
+    let mut setup = basic_setup();
 
     // aggregator creates the shares and pubkeys for this round
-    let (shares, pubkeys) = frost::keygen_with_dealer(num_signers, threshold, &mut rng).unwrap();
+    let (shares, pubkeys) =
+        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
     let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces>> =
-        std::collections::HashMap::with_capacity(threshold as usize);
-    let mut commitments: Vec<frost::SigningCommitments> = Vec::with_capacity(threshold as usize);
+        std::collections::HashMap::with_capacity(setup.threshold as usize);
+    let mut commitments: Vec<frost::SigningCommitments> =
+        Vec::with_capacity(setup.threshold as usize);
 
     // aggregator generates nonces and signing commitments for each participant.
-    for participant_index in 1..(threshold + 1) {
-        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut rng);
+    for participant_index in 1..(setup.threshold + 1) {
+        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut setup.rng);
         nonces.insert(participant_index as u64, nonce);
         commitments.push(commitment[0]);
     }
 
     // aggregator generates a signing package
-    let mut signature_shares: Vec<frost::SignatureShare> = Vec::with_capacity(threshold as usize);
+    let mut signature_shares: Vec<frost::SignatureShare> =
+        Vec::with_capacity(setup.threshold as usize);
     let message = "message to sign".as_bytes().to_vec();
     let signing_package = frost::SigningPackage {
         message: message.clone(),
@@ -676,7 +633,7 @@ fn validate_aggregatesignature() {
         frost::aggregate(&signing_package, &signature_shares[..], &pubkeys).unwrap();
 
     // this header is invalid
-    let header = create_valid_header(signer1, aggregator);
+    let header = create_valid_header(setup.signer1, setup.aggregator);
 
     let payload = Payload::AggregateSignature(AggregateSignature {
         group_commitment: GroupCommitment::from(group_signature_res),
@@ -692,7 +649,7 @@ fn validate_aggregatesignature() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeAggregator));
 
     // change the header, still invalid.
-    let header = create_valid_header(aggregator, dealer);
+    let header = create_valid_header(setup.aggregator, setup.dealer);
 
     let message = Message {
         header,
@@ -703,7 +660,7 @@ fn validate_aggregatesignature() {
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
 
     // change the header to valid
-    let header = create_valid_header(aggregator, signer1);
+    let header = create_valid_header(setup.aggregator, setup.signer1);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
 
@@ -712,28 +669,27 @@ fn validate_aggregatesignature() {
 
 #[test]
 fn serialize_aggregatesignature() {
-    let mut rng = thread_rng();
-    let signer1 = ParticipantId::Signer(1);
-    let aggregator = ParticipantId::Aggregator;
-    let num_signers = 3;
-    let threshold = 2;
+    let mut setup = basic_setup();
 
     // aggregator creates the shares and pubkeys for this round
-    let (shares, pubkeys) = frost::keygen_with_dealer(num_signers, threshold, &mut rng).unwrap();
+    let (shares, pubkeys) =
+        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
     let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces>> =
-        std::collections::HashMap::with_capacity(threshold as usize);
-    let mut commitments: Vec<frost::SigningCommitments> = Vec::with_capacity(threshold as usize);
+        std::collections::HashMap::with_capacity(setup.threshold as usize);
+    let mut commitments: Vec<frost::SigningCommitments> =
+        Vec::with_capacity(setup.threshold as usize);
 
     // aggregator generates nonces and signing commitments for each participant.
-    for participant_index in 1..(threshold + 1) {
-        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut rng);
+    for participant_index in 1..(setup.threshold + 1) {
+        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut setup.rng);
         nonces.insert(participant_index as u64, nonce);
         commitments.push(commitment[0]);
     }
 
     // aggregator generates a signing package
-    let mut signature_shares: Vec<frost::SignatureShare> = Vec::with_capacity(threshold as usize);
+    let mut signature_shares: Vec<frost::SignatureShare> =
+        Vec::with_capacity(setup.threshold as usize);
     let message = "message to sign".as_bytes().to_vec();
     let signing_package = frost::SigningPackage {
         message: message.clone(),
@@ -755,7 +711,7 @@ fn serialize_aggregatesignature() {
     let group_signature_res =
         frost::aggregate(&signing_package, &signature_shares[..], &pubkeys).unwrap();
 
-    let header = create_valid_header(aggregator, signer1);
+    let header = create_valid_header(setup.aggregator, setup.signer1);
 
     let payload = Payload::AggregateSignature(AggregateSignature {
         group_commitment: GroupCommitment::from(group_signature_res),
@@ -776,7 +732,7 @@ fn serialize_aggregatesignature() {
     assert_eq!(message, deserialized_json);
 
     let header_serialized_bytes = bincode::serialize(&header).unwrap();
-    serialize_header(header_serialized_bytes, aggregator, signer1);
+    serialize_header(header_serialized_bytes, setup.aggregator, setup.signer1);
 
     // make sure the message fields are in the right order
     let message_serialized_bytes = bincode::serialize(&message).unwrap();
@@ -815,4 +771,26 @@ fn serialize_header(
     assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
     assert_eq!(deserialized_sender, sender);
     assert_eq!(deserialized_receiver, receiver);
+}
+
+struct Setup {
+    rng: rand::rngs::ThreadRng,
+    num_signers: u8,
+    threshold: u8,
+    dealer: ParticipantId,
+    aggregator: ParticipantId,
+    signer1: ParticipantId,
+    signer2: ParticipantId,
+}
+
+fn basic_setup() -> Setup {
+    Setup {
+        rng: thread_rng(),
+        num_signers: 3,
+        threshold: 2,
+        dealer: ParticipantId::Dealer,
+        aggregator: ParticipantId::Aggregator,
+        signer1: ParticipantId::Signer(1),
+        signer2: ParticipantId::Signer(2),
+    }
 }
