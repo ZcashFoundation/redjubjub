@@ -62,13 +62,7 @@ fn validate_sharepackage() {
     let dealer = ParticipantId::Dealer;
     let aggregator = ParticipantId::Aggregator;
 
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1,
-        receiver: signer2,
-    };
-    let validate_header = Validate::validate(&header);
-    let valid_header = validate_header.expect("a valid header");
+    let header = create_valid_header(signer1, signer2);
 
     let group_public = VerificationKey::from(
         verification_key::VerificationKey::try_from(shares[0].group_public.bytes).unwrap(),
@@ -101,7 +95,7 @@ fn validate_sharepackage() {
     let valid_payload = validate_payload.expect("a valid payload").clone();
 
     let message = Message {
-        header: *valid_header,
+        header,
         payload: valid_payload.clone(),
     };
 
@@ -109,16 +103,10 @@ fn validate_sharepackage() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeDealer));
 
     // change the header
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: dealer,
-        receiver: aggregator,
-    };
-    let validate_header = Validate::validate(&header);
-    let valid_header = validate_header.expect("a valid header");
+    let header = create_valid_header(dealer, aggregator);
 
     let message = Message {
-        header: *valid_header,
+        header,
         payload: valid_payload,
     };
 
@@ -162,11 +150,7 @@ fn serialize_sharepackage() {
     let signer1 = ParticipantId::Signer(0);
     let dealer = ParticipantId::Dealer;
 
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: dealer,
-        receiver: signer1,
-    };
+    let header = create_valid_header(dealer, signer1);
 
     let group_public = VerificationKey::from(
         verification_key::VerificationKey::try_from(shares[0].group_public.bytes).unwrap(),
@@ -201,15 +185,7 @@ fn serialize_sharepackage() {
 
     // make sure the header fields are in the right order
     let header_serialized_bytes = bincode::serialize(&header).unwrap();
-    let deserialized_version: MsgVersion =
-        bincode::deserialize(&header_serialized_bytes[0..1]).unwrap();
-    let deserialized_sender: ParticipantId =
-        bincode::deserialize(&header_serialized_bytes[1..9]).unwrap();
-    let deserialized_receiver: ParticipantId =
-        bincode::deserialize(&header_serialized_bytes[9..17]).unwrap();
-    assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
-    assert_eq!(deserialized_sender, dealer);
-    assert_eq!(deserialized_receiver, signer1);
+    serialize_header(header_serialized_bytes, dealer, signer1);
 
     // make sure the payload fields are in the right order
     let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
@@ -245,11 +221,7 @@ fn validate_signingcommitments() {
 
     let (_nonce, commitment) = frost::preprocess(1, signer1_id, &mut rng);
 
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator,
-        receiver: signer2,
-    };
+    let header = create_valid_header(aggregator, signer2);
 
     let payload = Payload::SigningCommitments(SigningCommitments {
         hiding: Commitment(jubjub::AffinePoint::from(commitment[0].hiding).to_bytes()),
@@ -265,11 +237,7 @@ fn validate_signingcommitments() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeSigner));
 
     // change the header
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1,
-        receiver: signer2,
-    };
+    let header = create_valid_header(signer1, signer2);
 
     let message = Message {
         header,
@@ -280,11 +248,7 @@ fn validate_signingcommitments() {
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggergator));
 
     // change the header to valid
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1,
-        receiver: aggregator,
-    };
+    let header = create_valid_header(signer1, aggregator);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
 
@@ -301,11 +265,7 @@ fn serialize_signingcommitments() {
 
     let (_nonce, commitment) = frost::preprocess(1, signer1_id, &mut rng);
 
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator,
-        receiver: signer1,
-    };
+    let header = create_valid_header(aggregator, signer1);
 
     let hiding = Commitment(jubjub::AffinePoint::from(commitment[0].hiding).to_bytes());
     let binding = Commitment(jubjub::AffinePoint::from(commitment[0].binding).to_bytes());
@@ -327,15 +287,7 @@ fn serialize_signingcommitments() {
 
     // make sure the header fields are in the right order
     let header_serialized_bytes = bincode::serialize(&header).unwrap();
-    let deserialized_version: MsgVersion =
-        bincode::deserialize(&header_serialized_bytes[0..1]).unwrap();
-    let deserialized_sender: ParticipantId =
-        bincode::deserialize(&header_serialized_bytes[1..9]).unwrap();
-    let deserialized_receiver: ParticipantId =
-        bincode::deserialize(&header_serialized_bytes[9..17]).unwrap();
-    assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
-    assert_eq!(deserialized_sender, aggregator);
-    assert_eq!(deserialized_receiver, signer1);
+    serialize_header(header_serialized_bytes, aggregator, signer1);
 
     // make sure the payload fields are in the right order
     let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
@@ -370,11 +322,7 @@ fn validate_signingpackage() {
     let (_nonce, commitment1) = frost::preprocess(1, signer1_id, &mut rng);
     let (_nonce, commitment2) = frost::preprocess(1, signer2_id, &mut rng);
 
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1,
-        receiver: signer2,
-    };
+    let header = create_valid_header(signer1, signer2);
 
     let signing_commitment1 = SigningCommitments {
         hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
@@ -430,11 +378,7 @@ fn validate_signingpackage() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeAggregator));
 
     // change header
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator,
-        receiver: dealer,
-    };
+    let header = create_valid_header(aggregator, dealer);
 
     let message = Message {
         header: header,
@@ -444,11 +388,7 @@ fn validate_signingpackage() {
     let validate_message = Validate::validate(&message);
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
 
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator,
-        receiver: signer1,
-    };
+    let header = create_valid_header(aggregator, signer1);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
     assert_eq!(validate_message, None);
@@ -466,11 +406,7 @@ fn serialize_signingpackage() {
     let (_nonce, commitment1) = frost::preprocess(1, signer1_id, &mut rng);
     let (_nonce, commitment2) = frost::preprocess(1, signer2_id, &mut rng);
 
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator,
-        receiver: signer1,
-    };
+    let header = create_valid_header(aggregator, signer1);
 
     let signing_commitment1 = SigningCommitments {
         hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
@@ -505,15 +441,7 @@ fn serialize_signingpackage() {
 
     // make sure the header fields are in the right order
     let header_serialized_bytes = bincode::serialize(&header).unwrap();
-    let deserialized_version: MsgVersion =
-        bincode::deserialize(&header_serialized_bytes[0..1]).unwrap();
-    let deserialized_sender: ParticipantId =
-        bincode::deserialize(&header_serialized_bytes[1..9]).unwrap();
-    let deserialized_receiver: ParticipantId =
-        bincode::deserialize(&header_serialized_bytes[9..17]).unwrap();
-    assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
-    assert_eq!(deserialized_sender, aggregator);
-    assert_eq!(deserialized_receiver, signer1);
+    serialize_header(header_serialized_bytes, aggregator, signer1);
 
     // make sure the payload fields are in the right order
     let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
@@ -594,11 +522,7 @@ fn validate_signatureshare() {
     let signature_share = frost::sign(&signing_package, nonce1[0], &shares[0]).unwrap();
 
     // this header is invalid
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator,
-        receiver: signer1,
-    };
+    let header = create_valid_header(aggregator, signer1);
 
     let payload = Payload::SignatureShare(SignatureShare {
         signature: SignatureResponse(signature_share.signature.0.to_bytes()),
@@ -613,11 +537,7 @@ fn validate_signatureshare() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeSigner));
 
     // change the header, still invalid.
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1,
-        receiver: signer2,
-    };
+    let header = create_valid_header(signer1, signer2);
 
     let message = Message {
         header,
@@ -628,11 +548,7 @@ fn validate_signatureshare() {
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggergator));
 
     // change the header to valid
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1,
-        receiver: aggregator,
-    };
+    let header = create_valid_header(signer1, aggregator);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
 
@@ -680,11 +596,7 @@ fn serialize_signatureshare() {
     let signature_share = frost::sign(&signing_package, nonce1[0], &shares[0]).unwrap();
 
     // valid header
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1,
-        receiver: aggregator,
-    };
+    let header = create_valid_header(signer1, aggregator);
 
     let payload = Payload::SignatureShare(SignatureShare {
         signature: SignatureResponse(signature_share.signature.0.to_bytes()),
@@ -702,6 +614,9 @@ fn serialize_signatureshare() {
     let serialized_json = serde_json::to_string(&message).unwrap();
     let deserialized_json: Message = serde_json::from_str(serialized_json.as_str()).unwrap();
     assert_eq!(message, deserialized_json);
+
+    let header_serialized_bytes = bincode::serialize(&header).unwrap();
+    serialize_header(header_serialized_bytes, signer1, aggregator);
 
     // make sure the message fields are in the right order
     let message_serialized_bytes = bincode::serialize(&message).unwrap();
@@ -761,11 +676,7 @@ fn validate_aggregatesignature() {
         frost::aggregate(&signing_package, &signature_shares[..], &pubkeys).unwrap();
 
     // this header is invalid
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: signer1,
-        receiver: aggregator,
-    };
+    let header = create_valid_header(signer1, aggregator);
 
     let payload = Payload::AggregateSignature(AggregateSignature {
         group_commitment: GroupCommitment::from(group_signature_res),
@@ -781,11 +692,7 @@ fn validate_aggregatesignature() {
     assert_eq!(validate_message, Err(MsgErr::SenderMustBeAggregator));
 
     // change the header, still invalid.
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator,
-        receiver: dealer,
-    };
+    let header = create_valid_header(aggregator, dealer);
 
     let message = Message {
         header,
@@ -796,11 +703,7 @@ fn validate_aggregatesignature() {
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
 
     // change the header to valid
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator,
-        receiver: signer1,
-    };
+    let header = create_valid_header(aggregator, signer1);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
 
@@ -852,12 +755,7 @@ fn serialize_aggregatesignature() {
     let group_signature_res =
         frost::aggregate(&signing_package, &signature_shares[..], &pubkeys).unwrap();
 
-    // this header is invalid
-    let header = Header {
-        version: constants::BASIC_FROST_SERIALIZATION,
-        sender: aggregator,
-        receiver: signer1,
-    };
+    let header = create_valid_header(aggregator, signer1);
 
     let payload = Payload::AggregateSignature(AggregateSignature {
         group_commitment: GroupCommitment::from(group_signature_res),
@@ -877,6 +775,9 @@ fn serialize_aggregatesignature() {
     let deserialized_json: Message = serde_json::from_str(serialized_json.as_str()).unwrap();
     assert_eq!(message, deserialized_json);
 
+    let header_serialized_bytes = bincode::serialize(&header).unwrap();
+    serialize_header(header_serialized_bytes, aggregator, signer1);
+
     // make sure the message fields are in the right order
     let message_serialized_bytes = bincode::serialize(&message).unwrap();
     let deserialized_header: Header =
@@ -886,4 +787,32 @@ fn serialize_aggregatesignature() {
             .unwrap();
     assert_eq!(deserialized_header, header);
     assert_eq!(deserialized_payload, payload);
+}
+
+// utility functions
+
+fn create_valid_header(sender: ParticipantId, receiver: ParticipantId) -> Header {
+    Validate::validate(&Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: sender,
+        receiver: receiver,
+    })
+    .expect("always a valid header")
+    .clone()
+}
+
+fn serialize_header(
+    header_serialized_bytes: Vec<u8>,
+    sender: ParticipantId,
+    receiver: ParticipantId,
+) {
+    let deserialized_version: MsgVersion =
+        bincode::deserialize(&header_serialized_bytes[0..1]).unwrap();
+    let deserialized_sender: ParticipantId =
+        bincode::deserialize(&header_serialized_bytes[1..9]).unwrap();
+    let deserialized_receiver: ParticipantId =
+        bincode::deserialize(&header_serialized_bytes[9..17]).unwrap();
+    assert_eq!(deserialized_version, constants::BASIC_FROST_SERIALIZATION);
+    assert_eq!(deserialized_sender, sender);
+    assert_eq!(deserialized_receiver, receiver);
 }
