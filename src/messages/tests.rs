@@ -212,7 +212,7 @@ fn validate_signingcommitments() {
     };
 
     let validate_message = Validate::validate(&message);
-    assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggergator));
+    assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggregator));
 
     // change the header to valid
     let header = create_valid_header(setup.signer1, setup.aggregator);
@@ -399,7 +399,7 @@ fn serialize_signingpackage() {
 fn validate_signatureshare() {
     let mut setup = basic_setup();
 
-    // signers and aggergator should have this data from `SharePackage`
+    // signers and aggregator should have this data from `SharePackage`
     let (shares, _pubkeys) =
         frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
@@ -453,7 +453,7 @@ fn validate_signatureshare() {
     };
 
     let validate_message = Validate::validate(&message);
-    assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggergator));
+    assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggregator));
 
     // change the header to valid
     let header = create_valid_header(setup.signer1, setup.aggregator);
@@ -467,7 +467,7 @@ fn validate_signatureshare() {
 fn serialize_signatureshare() {
     let mut setup = basic_setup();
 
-    // signers and aggergator should have this data from `SharePackage`
+    // signers and aggregator should have this data from `SharePackage`
     let (shares, _pubkeys) =
         frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 

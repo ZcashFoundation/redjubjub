@@ -30,7 +30,7 @@ impl Validate for Message {
                     return Err(MsgErr::SenderMustBeSigner);
                 }
                 if self.header.receiver != ParticipantId::Aggregator {
-                    return Err(MsgErr::ReceiverMustBeAggergator);
+                    return Err(MsgErr::ReceiverMustBeAggregator);
                 }
             }
             Payload::SigningPackage(_) => {
@@ -46,7 +46,7 @@ impl Validate for Message {
                     return Err(MsgErr::SenderMustBeSigner);
                 }
                 if self.header.receiver != ParticipantId::Aggregator {
-                    return Err(MsgErr::ReceiverMustBeAggergator);
+                    return Err(MsgErr::ReceiverMustBeAggregator);
                 }
             }
             Payload::AggregateSignature(_) => {
@@ -127,7 +127,7 @@ pub enum MsgErr {
     #[error("the sender of this message must be a signer")]
     SenderMustBeSigner,
     #[error("the receiver of this message must be the aggregator")]
-    ReceiverMustBeAggergator,
+    ReceiverMustBeAggregator,
     #[error("the sender of this message must be the aggregator")]
     SenderMustBeAggregator,
     #[error("the number of signers must be at least {0}")]
