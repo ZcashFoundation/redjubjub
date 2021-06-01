@@ -3,7 +3,7 @@
 //! [RFC-001]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md
 #![allow(dead_code)]
 
-use crate::{frost, verification_key, SpendAuth};
+use crate::{frost, signature, verification_key, SpendAuth};
 use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
@@ -47,6 +47,18 @@ pub struct GroupCommitment([u8; 32]);
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 pub struct SignatureResponse([u8; 32]);
+
+impl From<signature::Signature<SpendAuth>> for SignatureResponse {
+    fn from(value: signature::Signature<SpendAuth>) -> SignatureResponse {
+        SignatureResponse(value.s_bytes)
+    }
+}
+
+impl From<signature::Signature<SpendAuth>> for GroupCommitment {
+    fn from(value: signature::Signature<SpendAuth>) -> GroupCommitment {
+        GroupCommitment(value.r_bytes)
+    }
+}
 
 /// Define our own `VerificationKey` type instead of using `frost::VerificationKey<SpendAuth>`.
 ///

@@ -713,3 +713,177 @@ fn serialize_signatureshare() {
     assert_eq!(deserialized_header, header);
     assert_eq!(deserialized_payload, payload);
 }
+
+#[test]
+fn validate_aggregatesignature() {
+    let mut rng = thread_rng();
+    let signer1 = ParticipantId::Signer(1);
+    let aggregator = ParticipantId::Aggregator;
+    let dealer = ParticipantId::Dealer;
+    let num_signers = 3;
+    let threshold = 2;
+
+    // aggregator creates the shares and pubkeys for this round
+    let (shares, pubkeys) = frost::keygen_with_dealer(num_signers, threshold, &mut rng).unwrap();
+
+    let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces>> =
+        std::collections::HashMap::with_capacity(threshold as usize);
+    let mut commitments: Vec<frost::SigningCommitments> = Vec::with_capacity(threshold as usize);
+
+    // aggregator generates nonces and signing commitments for each participant.
+    for participant_index in 1..(threshold + 1) {
+        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut rng);
+        nonces.insert(participant_index as u64, nonce);
+        commitments.push(commitment[0]);
+    }
+
+    // aggregator generates a signing package
+    let mut signature_shares: Vec<frost::SignatureShare> = Vec::with_capacity(threshold as usize);
+    let message = "message to sign".as_bytes().to_vec();
+    let signing_package = frost::SigningPackage {
+        message: message.clone(),
+        signing_commitments: commitments,
+    };
+
+    // each participant generates their signature share
+    for (participant_index, nonce) in nonces {
+        let share_package = shares
+            .iter()
+            .find(|share| participant_index == share.index)
+            .unwrap();
+        let nonce_to_use = nonce[0];
+        let signature_share = frost::sign(&signing_package, nonce_to_use, share_package).unwrap();
+        signature_shares.push(signature_share);
+    }
+
+    // aggregator generate the final signature
+    let group_signature_res =
+        frost::aggregate(&signing_package, &signature_shares[..], &pubkeys).unwrap();
+
+    // this header is invalid
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: signer1,
+        receiver: aggregator,
+    };
+
+    let payload = Payload::AggregateSignature(AggregateSignature {
+        group_commitment: GroupCommitment::from(group_signature_res),
+        schnorr_signature: SignatureResponse::from(group_signature_res),
+    });
+
+    let message = Message {
+        header,
+        payload: payload.clone(),
+    };
+
+    let validate_message = Validate::validate(&message);
+    assert_eq!(validate_message, Err(MsgErr::SenderMustBeAggregator));
+
+    // change the header, still invalid.
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: aggregator,
+        receiver: dealer,
+    };
+
+    let message = Message {
+        header,
+        payload: payload.clone(),
+    };
+
+    let validate_message = Validate::validate(&message);
+    assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
+
+    // change the header to valid
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: aggregator,
+        receiver: signer1,
+    };
+
+    let validate_message = Validate::validate(&Message { header, payload }).err();
+
+    assert_eq!(validate_message, None);
+}
+
+#[test]
+fn serialize_aggregatesignature() {
+    let mut rng = thread_rng();
+    let signer1 = ParticipantId::Signer(1);
+    let aggregator = ParticipantId::Aggregator;
+    let num_signers = 3;
+    let threshold = 2;
+
+    // aggregator creates the shares and pubkeys for this round
+    let (shares, pubkeys) = frost::keygen_with_dealer(num_signers, threshold, &mut rng).unwrap();
+
+    let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces>> =
+        std::collections::HashMap::with_capacity(threshold as usize);
+    let mut commitments: Vec<frost::SigningCommitments> = Vec::with_capacity(threshold as usize);
+
+    // aggregator generates nonces and signing commitments for each participant.
+    for participant_index in 1..(threshold + 1) {
+        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut rng);
+        nonces.insert(participant_index as u64, nonce);
+        commitments.push(commitment[0]);
+    }
+
+    // aggregator generates a signing package
+    let mut signature_shares: Vec<frost::SignatureShare> = Vec::with_capacity(threshold as usize);
+    let message = "message to sign".as_bytes().to_vec();
+    let signing_package = frost::SigningPackage {
+        message: message.clone(),
+        signing_commitments: commitments,
+    };
+
+    // each participant generates their signature share
+    for (participant_index, nonce) in nonces {
+        let share_package = shares
+            .iter()
+            .find(|share| participant_index == share.index)
+            .unwrap();
+        let nonce_to_use = nonce[0];
+        let signature_share = frost::sign(&signing_package, nonce_to_use, share_package).unwrap();
+        signature_shares.push(signature_share);
+    }
+
+    // aggregator generate the final signature
+    let group_signature_res =
+        frost::aggregate(&signing_package, &signature_shares[..], &pubkeys).unwrap();
+
+    // this header is invalid
+    let header = Header {
+        version: constants::BASIC_FROST_SERIALIZATION,
+        sender: aggregator,
+        receiver: signer1,
+    };
+
+    let payload = Payload::AggregateSignature(AggregateSignature {
+        group_commitment: GroupCommitment::from(group_signature_res),
+        schnorr_signature: SignatureResponse::from(group_signature_res),
+    });
+
+    let message = Message {
+        header,
+        payload: payload.clone(),
+    };
+
+    let serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_bytes: Message = bincode::deserialize(&serialized_bytes).unwrap();
+    assert_eq!(message, deserialized_bytes);
+
+    let serialized_json = serde_json::to_string(&message).unwrap();
+    let deserialized_json: Message = serde_json::from_str(serialized_json.as_str()).unwrap();
+    assert_eq!(message, deserialized_json);
+
+    // make sure the message fields are in the right order
+    let message_serialized_bytes = bincode::serialize(&message).unwrap();
+    let deserialized_header: Header =
+        bincode::deserialize(&message_serialized_bytes[0..17]).unwrap();
+    let deserialized_payload: Payload =
+        bincode::deserialize(&message_serialized_bytes[17..message_serialized_bytes.len()])
+            .unwrap();
+    assert_eq!(deserialized_header, header);
+    assert_eq!(deserialized_payload, payload);
+}
