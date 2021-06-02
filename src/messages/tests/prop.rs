@@ -1,6 +1,6 @@
 use proptest::prelude::*;
 
-use super::super::*;
+use crate::messages::*;
 
 proptest! {
     #[test]

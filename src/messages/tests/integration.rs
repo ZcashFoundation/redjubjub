@@ -1,11 +1,12 @@
+use crate::{
+    frost,
+    messages::{
+        validate::{MsgErr, Validate},
+        *,
+    },
+    verification_key,
+};
 use rand::thread_rng;
-
-use super::super::*;
-
-use crate::messages::validate::{MsgErr, Validate};
-
-use crate::{frost, verification_key};
-
 use serde_json;
 use std::convert::TryFrom;
 
