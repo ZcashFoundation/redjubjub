@@ -1,7 +1,6 @@
 //! The FROST communication messages specified in [RFC-001]
 //!
 //! [RFC-001]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md
-#![allow(dead_code)]
 
 use crate::{frost, signature, verification_key, SpendAuth};
 use serde::{Deserialize, Serialize};
