@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
 
+#[cfg(test)]
+mod arbitrary;
 mod constants;
 mod serialize;
 #[cfg(test)]
