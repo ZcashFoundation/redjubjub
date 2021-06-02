@@ -247,19 +247,11 @@ fn validate_signingpackage() {
 
     let header = create_valid_header(setup.signer1, setup.signer2);
 
-    let signing_commitment1 = SigningCommitments {
-        hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
-        binding: Commitment(jubjub::AffinePoint::from(commitment1[0].binding).to_bytes()),
-    };
-    let signing_commitment2 = SigningCommitments {
-        hiding: Commitment(jubjub::AffinePoint::from(commitment2[0].hiding).to_bytes()),
-        binding: Commitment(jubjub::AffinePoint::from(commitment2[0].binding).to_bytes()),
-    };
-
-    let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(setup.signer1, signing_commitment1.clone());
-
     // try with only 1 commitment
+    let commitments = vec![commitment1[0]];
+    let participants = vec![setup.signer1];
+    let signing_commitments = create_signing_commitments(commitments, participants);
+
     let payload = Payload::SigningPackage(SigningPackage {
         signing_commitments: signing_commitments.clone(),
         message: "hola".as_bytes().to_vec(),
@@ -273,7 +265,10 @@ fn validate_signingpackage() {
     // add too many commitments
     let mut big_signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
     for i in 0..constants::MAX_SIGNERS as u64 + 1 {
-        big_signing_commitments.insert(ParticipantId::Signer(i), signing_commitment1.clone());
+        big_signing_commitments.insert(
+            ParticipantId::Signer(i),
+            signing_commitments[&setup.signer1].clone(),
+        );
     }
     let payload = Payload::SigningPackage(SigningPackage {
         signing_commitments: big_signing_commitments,
@@ -282,8 +277,10 @@ fn validate_signingpackage() {
     let validate_payload = Validate::validate(&payload);
     assert_eq!(validate_payload, Err(MsgErr::TooManyCommitments));
 
-    // add the other valid commitment
-    signing_commitments.insert(setup.signer2, signing_commitment2);
+    // change to 2 commitments
+    let commitments = vec![commitment1[0], commitment2[0]];
+    let participants = vec![setup.signer1, setup.signer2];
+    let signing_commitments = create_signing_commitments(commitments, participants);
 
     let big_message = [0u8; constants::ZCASH_MAX_PROTOCOL_MESSAGE_LEN + 1].to_vec();
     let payload = Payload::SigningPackage(SigningPackage {
@@ -326,18 +323,9 @@ fn serialize_signingpackage() {
 
     let header = create_valid_header(setup.aggregator, setup.signer1);
 
-    let signing_commitment1 = SigningCommitments {
-        hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
-        binding: Commitment(jubjub::AffinePoint::from(commitment1[0].binding).to_bytes()),
-    };
-    let signing_commitment2 = SigningCommitments {
-        hiding: Commitment(jubjub::AffinePoint::from(commitment2[0].hiding).to_bytes()),
-        binding: Commitment(jubjub::AffinePoint::from(commitment2[0].binding).to_bytes()),
-    };
-
-    let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(setup.signer1, signing_commitment1.clone());
-    signing_commitments.insert(setup.signer2, signing_commitment2.clone());
+    let commitments = vec![commitment1[0], commitment2[0]];
+    let participants = vec![setup.signer1, setup.signer2];
+    let signing_commitments = create_signing_commitments(commitments, participants);
 
     let payload = Payload::SigningPackage(SigningPackage {
         signing_commitments: signing_commitments.clone(),
@@ -374,9 +362,15 @@ fn serialize_signingpackage() {
     .unwrap();
 
     assert_eq!(deserialized_participant_id_1, setup.signer1);
-    assert_eq!(deserialized_signing_commitment_1, signing_commitment1);
+    assert_eq!(
+        deserialized_signing_commitment_1,
+        signing_commitments[&setup.signer1]
+    );
     assert_eq!(deserialized_participant_id_2, setup.signer2);
-    assert_eq!(deserialized_signing_commitment_2, signing_commitment2);
+    assert_eq!(
+        deserialized_signing_commitment_2,
+        signing_commitments[&setup.signer2]
+    );
     assert_eq!(deserialized_message, "hola".as_bytes().to_vec());
 }
 
@@ -392,19 +386,9 @@ fn validate_signatureshare() {
     // the signrs should have this data from `SigningPackage`
     let (nonce1, commitment1) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
     let (_nonce2, commitment2) = frost::preprocess(1, u64::from(setup.signer2), &mut setup.rng);
-
-    let signing_commitment1 = SigningCommitments {
-        hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
-        binding: Commitment(jubjub::AffinePoint::from(commitment1[0].binding).to_bytes()),
-    };
-    let signing_commitment2 = SigningCommitments {
-        hiding: Commitment(jubjub::AffinePoint::from(commitment2[0].hiding).to_bytes()),
-        binding: Commitment(jubjub::AffinePoint::from(commitment2[0].binding).to_bytes()),
-    };
-
-    let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(setup.signer1, signing_commitment1.clone());
-    signing_commitments.insert(setup.signer2, signing_commitment2.clone());
+    let commitments = vec![commitment1[0], commitment2[0]];
+    let participants = vec![setup.signer1, setup.signer2];
+    let signing_commitments = create_signing_commitments(commitments, participants);
 
     let signing_package = frost::SigningPackage::from(SigningPackage {
         signing_commitments: signing_commitments.clone(),
@@ -460,19 +444,9 @@ fn serialize_signatureshare() {
     // the signers should have this data from `SigningPackage`
     let (nonce1, commitment1) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
     let (_nonce2, commitment2) = frost::preprocess(1, u64::from(setup.signer2), &mut setup.rng);
-
-    let signing_commitment1 = SigningCommitments {
-        hiding: Commitment(jubjub::AffinePoint::from(commitment1[0].hiding).to_bytes()),
-        binding: Commitment(jubjub::AffinePoint::from(commitment1[0].binding).to_bytes()),
-    };
-    let signing_commitment2 = SigningCommitments {
-        hiding: Commitment(jubjub::AffinePoint::from(commitment2[0].hiding).to_bytes()),
-        binding: Commitment(jubjub::AffinePoint::from(commitment2[0].binding).to_bytes()),
-    };
-
-    let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-    signing_commitments.insert(setup.signer1, signing_commitment1.clone());
-    signing_commitments.insert(setup.signer2, signing_commitment2.clone());
+    let commitments = vec![commitment1[0], commitment2[0]];
+    let participants = vec![setup.signer1, setup.signer2];
+    let signing_commitments = create_signing_commitments(commitments, participants);
 
     let signing_package = frost::SigningPackage::from(SigningPackage {
         signing_commitments: signing_commitments.clone(),
@@ -729,4 +703,20 @@ fn generate_share_commitment(
         );
     }
     share_commitment
+}
+
+fn create_signing_commitments(
+    commitments: Vec<frost::SigningCommitments>,
+    participants: Vec<ParticipantId>,
+) -> BTreeMap<ParticipantId, SigningCommitments> {
+    let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
+
+    for i in 0..participants.len() {
+        let signing_commitment = SigningCommitments {
+            hiding: Commitment(jubjub::AffinePoint::from(commitments[i].hiding).to_bytes()),
+            binding: Commitment(jubjub::AffinePoint::from(commitments[i].binding).to_bytes()),
+        };
+        signing_commitments.insert(participants[i], signing_commitment.clone());
+    }
+    signing_commitments
 }
