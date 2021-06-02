@@ -150,17 +150,24 @@ fn serialize_sharepackage() {
         payload: payload.clone(),
     };
 
-    // check general structure serialization/deserialization
+    // check general structure and header serialization/deserialization
     serialize_message(message, setup.dealer, setup.signer1);
 
     // check payload serialization/deserialization
-    let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    // remove the padding. TODO: why is this happening ?
+    payload_serialized_bytes =
+        (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
+
+    // group_public is 32 bytes
     let deserialized_group_public: VerificationKey =
-        bincode::deserialize(&payload_serialized_bytes[4..36]).unwrap();
+        bincode::deserialize(&payload_serialized_bytes[0..32]).unwrap();
+    // secret share is 32 bytes
     let deserialized_secret_share: Secret =
-        bincode::deserialize(&payload_serialized_bytes[36..68]).unwrap();
+        bincode::deserialize(&payload_serialized_bytes[32..64]).unwrap();
+    // rest of the message is the map
     let deserialized_share_commitment: BTreeMap<ParticipantId, Commitment> =
-        bincode::deserialize(&payload_serialized_bytes[68..payload_serialized_bytes.len()])
+        bincode::deserialize(&payload_serialized_bytes[64..payload_serialized_bytes.len()])
             .unwrap();
     assert_eq!(deserialized_group_public, group_public);
     assert_eq!(deserialized_secret_share, secret_share);
@@ -229,11 +236,17 @@ fn serialize_signingcommitments() {
     serialize_message(message, setup.aggregator, setup.signer1);
 
     // check payload serialization/deserialization
-    let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    // remove the padding. TODO: why is this happening ?
+    payload_serialized_bytes =
+        (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
+
+    // hiding is 32 bytes
     let deserialized_hiding: Commitment =
-        bincode::deserialize(&payload_serialized_bytes[4..36]).unwrap();
+        bincode::deserialize(&payload_serialized_bytes[0..32]).unwrap();
+    // binding is 43 bytes kore
     let deserialized_binding: Commitment =
-        bincode::deserialize(&payload_serialized_bytes[36..68]).unwrap();
+        bincode::deserialize(&payload_serialized_bytes[32..64]).unwrap();
     assert_eq!(deserialized_hiding, hiding);
     assert_eq!(deserialized_binding, binding);
 }
@@ -341,36 +354,25 @@ fn serialize_signingpackage() {
     serialize_message(message, setup.aggregator, setup.signer1);
 
     // check payload serialization/deserialization
-    let payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    // remove the padding. TODO: why is this happening ?
+    payload_serialized_bytes =
+        (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
 
-    let map_len_serialized: u32 = bincode::deserialize(&payload_serialized_bytes[0..12]).unwrap();
-    assert_eq!(map_len_serialized, 2);
+    let deserialized_map_len: u32 = bincode::deserialize(&payload_serialized_bytes[0..8]).unwrap();
+    assert_eq!(deserialized_map_len, 2);
 
-    // TODO: deserializing the entire HashMap brings problems
-    let deserialized_participant_id_1: ParticipantId =
-        bincode::deserialize(&payload_serialized_bytes[12..20]).unwrap();
-    let deserialized_signing_commitment_1: SigningCommitments =
-        bincode::deserialize(&payload_serialized_bytes[20..20 + 64]).unwrap();
-    let deserialized_participant_id_2: ParticipantId =
-        bincode::deserialize(&payload_serialized_bytes[20 + 64..20 + 64 + 8]).unwrap();
-    let deserialized_signing_commitment_2: SigningCommitments =
-        bincode::deserialize(&payload_serialized_bytes[20 + 64 + 8..20 + 128 + 8]).unwrap();
-    let deserialized_message: Vec<u8> = bincode::deserialize(
-        &payload_serialized_bytes
-            [payload_serialized_bytes.len() - 12..payload_serialized_bytes.len()],
-    )
-    .unwrap();
+    // Each SigningCommitment is 64 bytes and the ParticipantId is 8 bytes.
+    // This is multiplied by the map len, also include the map len bytes.
+    let deserialized_signing_commitments: BTreeMap<ParticipantId, SigningCommitments> =
+        bincode::deserialize(&payload_serialized_bytes[0..152]).unwrap();
 
-    assert_eq!(deserialized_participant_id_1, setup.signer1);
-    assert_eq!(
-        deserialized_signing_commitment_1,
-        signing_commitments[&setup.signer1]
-    );
-    assert_eq!(deserialized_participant_id_2, setup.signer2);
-    assert_eq!(
-        deserialized_signing_commitment_2,
-        signing_commitments[&setup.signer2]
-    );
+    // Message is from the end of the map up to the end of the message.
+    let deserialized_message: Vec<u8> =
+        bincode::deserialize(&payload_serialized_bytes[152..payload_serialized_bytes.len()])
+            .unwrap();
+
+    assert_eq!(deserialized_signing_commitments, signing_commitments);
     assert_eq!(deserialized_message, "hola".as_bytes().to_vec());
 }
 
@@ -459,9 +461,8 @@ fn serialize_signatureshare() {
     // valid header
     let header = create_valid_header(setup.signer1, setup.aggregator);
 
-    let payload = Payload::SignatureShare(SignatureShare {
-        signature: SignatureResponse(signature_share.signature.0.to_bytes()),
-    });
+    let signature = SignatureResponse(signature_share.signature.0.to_bytes());
+    let payload = Payload::SignatureShare(SignatureShare { signature });
 
     let message = Message {
         header: header,
@@ -471,8 +472,16 @@ fn serialize_signatureshare() {
     // check general structure serialization/deserialization
     serialize_message(message, setup.signer1, setup.aggregator);
 
-    // we dont need to check the payload fields order here as this
-    // is a one field message.
+    // check payload serialization/deserialization
+    let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    // remove the padding. TODO: why is this happening ?
+    payload_serialized_bytes =
+        (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
+
+    // signature is 32 bytes
+    let deserialized_signature: SignatureResponse =
+        bincode::deserialize(&payload_serialized_bytes[0..32]).unwrap();
+    assert_eq!(deserialized_signature, signature);
 }
 
 #[test]
@@ -600,9 +609,11 @@ fn serialize_aggregatesignature() {
 
     let header = create_valid_header(setup.aggregator, setup.signer1);
 
+    let group_commitment = GroupCommitment::from(group_signature_res);
+    let schnorr_signature = SignatureResponse::from(group_signature_res);
     let payload = Payload::AggregateSignature(AggregateSignature {
-        group_commitment: GroupCommitment::from(group_signature_res),
-        schnorr_signature: SignatureResponse::from(group_signature_res),
+        group_commitment,
+        schnorr_signature,
     });
 
     let message = Message {
@@ -613,7 +624,21 @@ fn serialize_aggregatesignature() {
     // check general structure serialization/deserialization
     serialize_message(message, setup.aggregator, setup.signer1);
 
-    // TODO: check the payload fields order
+    // check payload serialization/deserialization
+    let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
+    // remove the padding. TODO: why is this happening ?
+    payload_serialized_bytes =
+        (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
+
+    // group_commitment is 32 bytes
+    let deserialized_group_commiment: GroupCommitment =
+        bincode::deserialize(&payload_serialized_bytes[0..32]).unwrap();
+    // schnorr_signature is 32 bytes
+    let deserialized_schnorr_signature: SignatureResponse =
+        bincode::deserialize(&payload_serialized_bytes[32..64]).unwrap();
+
+    assert_eq!(deserialized_group_commiment, group_commitment);
+    assert_eq!(deserialized_schnorr_signature, schnorr_signature);
 }
 
 // utility functions

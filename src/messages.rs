@@ -38,7 +38,7 @@ impl From<frost::Commitment> for Commitment {
 ///
 /// The serialization design specifies that `GroupCommitment` is a `AffinePoint` that uses:
 /// "a 32-byte little-endian canonical representation".
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 pub struct GroupCommitment([u8; 32]);
 
 /// Define our own `SignatureResponse` type instead of using `frost::SignatureResponse`.
