@@ -718,8 +718,8 @@ fn basic_setup() -> Setup {
         threshold: 2,
         dealer: ParticipantId::Dealer,
         aggregator: ParticipantId::Aggregator,
-        signer1: ParticipantId::Signer(1),
-        signer2: ParticipantId::Signer(2),
+        signer1: ParticipantId::Signer(0),
+        signer2: ParticipantId::Signer(1),
     }
 }
 

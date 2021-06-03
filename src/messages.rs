@@ -156,7 +156,8 @@ pub enum ParticipantId {
 impl From<ParticipantId> for u64 {
     fn from(value: ParticipantId) -> u64 {
         match value {
-            ParticipantId::Signer(id) => id,
+            // An id of `0` is invalid in frost.
+            ParticipantId::Signer(id) => id + 1,
             ParticipantId::Dealer => constants::DEALER_PARTICIPANT_ID,
             ParticipantId::Aggregator => constants::AGGREGATOR_PARTICIPANT_ID,
         }
