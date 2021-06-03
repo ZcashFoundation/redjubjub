@@ -175,10 +175,13 @@ fn serialize_sharepackage() {
     // secret share is 32 bytes
     let deserialized_secret_share: Secret =
         bincode::deserialize(&payload_serialized_bytes[32..64]).unwrap();
-    // rest of the message is the map
+    // rest of the message is the map: 32(Commitment) + 8(ParticipantId) + 8(map.len())
     let deserialized_share_commitment: BTreeMap<ParticipantId, Commitment> =
-        bincode::deserialize(&payload_serialized_bytes[64..payload_serialized_bytes.len()])
-            .unwrap();
+        bincode::deserialize(&payload_serialized_bytes[64..112]).unwrap();
+
+    // no leftover bytes
+    assert_eq!(payload_serialized_bytes.len(), 112);
+
     assert_eq!(deserialized_group_public, group_public);
     assert_eq!(deserialized_secret_share, secret_share);
     assert_eq!(deserialized_share_commitment, share_commitment);
@@ -262,6 +265,10 @@ fn serialize_signingcommitments() {
     // binding is 43 bytes kore
     let deserialized_binding: Commitment =
         bincode::deserialize(&payload_serialized_bytes[32..64]).unwrap();
+
+    // no leftover bytes
+    assert_eq!(payload_serialized_bytes.len(), 64);
+
     assert_eq!(deserialized_hiding, hiding);
     assert_eq!(deserialized_binding, binding);
 }
@@ -397,6 +404,9 @@ fn serialize_signingpackage() {
         bincode::deserialize(&payload_serialized_bytes[152..payload_serialized_bytes.len()])
             .unwrap();
 
+    // no leftover bytes
+    assert_eq!(payload_serialized_bytes.len(), 164);
+
     assert_eq!(deserialized_signing_commitments, signing_commitments);
     assert_eq!(deserialized_message, "hola".as_bytes().to_vec());
 }
@@ -512,6 +522,10 @@ fn serialize_signatureshare() {
     // signature is 32 bytes
     let deserialized_signature: SignatureResponse =
         bincode::deserialize(&payload_serialized_bytes[0..32]).unwrap();
+
+    // no leftover bytes
+    assert_eq!(payload_serialized_bytes.len(), 32);
+
     assert_eq!(deserialized_signature, signature);
 }
 
@@ -673,6 +687,9 @@ fn serialize_aggregatesignature() {
     // schnorr_signature is 32 bytes
     let deserialized_schnorr_signature: SignatureResponse =
         bincode::deserialize(&payload_serialized_bytes[32..64]).unwrap();
+
+    // no leftover bytes
+    assert_eq!(payload_serialized_bytes.len(), 64);
 
     assert_eq!(deserialized_group_commiment, group_commitment);
     assert_eq!(deserialized_schnorr_signature, schnorr_signature);
