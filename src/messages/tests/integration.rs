@@ -179,6 +179,11 @@ fn serialize_sharepackage() {
     let deserialized_share_commitment: BTreeMap<ParticipantId, Commitment> =
         bincode::deserialize(&payload_serialized_bytes[64..112]).unwrap();
 
+    // check the map len
+    let deserialized_map_len: u64 =
+        bincode::deserialize(&payload_serialized_bytes[64..72]).unwrap();
+    assert_eq!(deserialized_map_len, 1);
+
     // no leftover bytes
     assert_eq!(payload_serialized_bytes.len(), 112);
 
@@ -391,7 +396,8 @@ fn serialize_signingpackage() {
     payload_serialized_bytes =
         (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
 
-    let deserialized_map_len: u32 = bincode::deserialize(&payload_serialized_bytes[0..8]).unwrap();
+    // check the map len
+    let deserialized_map_len: u64 = bincode::deserialize(&payload_serialized_bytes[0..8]).unwrap();
     assert_eq!(deserialized_map_len, 2);
 
     // Each SigningCommitment is 64 bytes and the ParticipantId is 8 bytes.
