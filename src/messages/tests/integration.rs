@@ -53,7 +53,7 @@ fn validate_sender_receiver() {
 #[test]
 fn validate_sharepackage() {
     let setup = basic_setup();
-    let (shares, _pubkeys) =
+    let (mut shares, _pubkeys) =
         frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
     let header = create_valid_header(setup.signer1, setup.signer2);
@@ -64,6 +64,7 @@ fn validate_sharepackage() {
     let secret_share = Secret(shares[0].share.value.0.to_bytes());
 
     let participants = vec![setup.signer1, setup.signer2];
+    shares.truncate(2);
     let share_commitment = generate_share_commitment(&shares, participants);
 
     let payload = Payload::SharePackage(SharePackage {
@@ -94,6 +95,7 @@ fn validate_sharepackage() {
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
 
     let participants = vec![setup.signer1];
+    shares.truncate(1);
     let mut share_commitment = generate_share_commitment(&shares, participants);
 
     // change the payload to have only 1 commitment
@@ -128,7 +130,7 @@ fn validate_sharepackage() {
 fn serialize_sharepackage() {
     let setup = basic_setup();
 
-    let (shares, _pubkeys) =
+    let (mut shares, _pubkeys) =
         frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
     let header = create_valid_header(setup.dealer, setup.signer1);
@@ -139,6 +141,7 @@ fn serialize_sharepackage() {
     let secret_share = Secret(shares[0].share.value.0.to_bytes());
 
     let participants = vec![setup.signer1];
+    shares.truncate(1);
     let share_commitment = generate_share_commitment(&shares, participants);
 
     let payload = Payload::SharePackage(SharePackage {
@@ -724,30 +727,33 @@ fn generate_share_commitment(
     shares: &Vec<frost::SharePackage>,
     participants: Vec<ParticipantId>,
 ) -> BTreeMap<ParticipantId, Commitment> {
-    let mut share_commitment = BTreeMap::<ParticipantId, Commitment>::new();
-
-    //assert_eq!(shares.len(), participants.len());
-    for i in 0..participants.len() {
-        share_commitment.insert(
-            participants[i],
-            Commitment::from(shares[i].share.commitment.0[0].clone()),
-        );
-    }
-    share_commitment
+    assert_eq!(shares.len(), participants.len());
+    participants
+        .into_iter()
+        .zip(shares)
+        .map(|(participant_id, share)| {
+            (
+                participant_id,
+                Commitment::from(share.share.commitment.0[0].clone()),
+            )
+        })
+        .collect()
 }
 
 fn create_signing_commitments(
     commitments: Vec<frost::SigningCommitments>,
     participants: Vec<ParticipantId>,
 ) -> BTreeMap<ParticipantId, SigningCommitments> {
-    let mut signing_commitments = BTreeMap::<ParticipantId, SigningCommitments>::new();
-
-    for i in 0..participants.len() {
-        let signing_commitment = SigningCommitments {
-            hiding: Commitment(jubjub::AffinePoint::from(commitments[i].hiding).to_bytes()),
-            binding: Commitment(jubjub::AffinePoint::from(commitments[i].binding).to_bytes()),
-        };
-        signing_commitments.insert(participants[i], signing_commitment.clone());
-    }
-    signing_commitments
+    assert_eq!(commitments.len(), participants.len());
+    participants
+        .into_iter()
+        .zip(commitments)
+        .map(|(participant_id, commitment)| {
+            let signing_commitment = SigningCommitments {
+                hiding: Commitment(jubjub::AffinePoint::from(commitment.hiding).to_bytes()),
+                binding: Commitment(jubjub::AffinePoint::from(commitment.binding).to_bytes()),
+            };
+            (participant_id, signing_commitment)
+        })
+        .collect()
 }
