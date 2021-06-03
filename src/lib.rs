@@ -22,7 +22,7 @@ pub mod frost;
 mod hash;
 mod messages;
 mod scalar_mul;
-pub mod signature;
+pub(crate) mod signature;
 mod signing_key;
 mod verification_key;
 
