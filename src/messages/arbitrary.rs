@@ -27,6 +27,10 @@ impl Arbitrary for Header {
             any::<ParticipantId>(),
             any::<ParticipantId>(),
         )
+            .prop_filter(
+                "Sender and receiver participant IDs can not be the same",
+                |(_, sender, receiver)| sender != receiver,
+            )
             .prop_map(|(version, sender, receiver)| Header {
                 version: version,
                 sender: sender,
