@@ -650,6 +650,37 @@ fn serialize_aggregatesignature() {
     assert_eq!(deserialized_schnorr_signature, schnorr_signature);
 }
 
+#[test]
+fn btreemap() {
+    let mut setup = basic_setup();
+    let mut map = BTreeMap::new();
+
+    let (_nonce, commitment) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
+
+    // try with only 1 commitment
+    let commitments = vec![commitment[0]];
+    let participants = vec![setup.signer1];
+    let signing_commitments = create_signing_commitments(commitments, participants);
+
+    map.insert(ParticipantId::Signer(1), &signing_commitments);
+    map.insert(ParticipantId::Signer(2), &signing_commitments);
+    map.insert(ParticipantId::Signer(0), &signing_commitments);
+
+    // Check the ascending order
+    let mut map_iter = map.iter();
+    let (key, _) = map_iter.next().unwrap();
+    assert_eq!(*key, ParticipantId::Signer(0));
+    let (key, _) = map_iter.next().unwrap();
+    assert_eq!(*key, ParticipantId::Signer(1));
+    let (key, _) = map_iter.next().unwrap();
+    assert_eq!(*key, ParticipantId::Signer(2));
+
+    // Add a repeated key
+    map.insert(ParticipantId::Signer(1), &signing_commitments);
+    // BTreeMap is not increasing
+    assert_eq!(map.len(), 3);
+}
+
 // utility functions
 
 fn create_valid_header(sender: ParticipantId, receiver: ParticipantId) -> Header {
