@@ -27,9 +27,9 @@ fn check_sign_with_dealer() {
     // - decide what message to sign
     // - take one (unused) commitment per signing participant
     let mut signature_shares: Vec<frost::SignatureShare> = Vec::with_capacity(threshold as usize);
-    let message = "message to sign".as_bytes().to_vec();
+    let message = "message to sign".as_bytes();
     let signing_package = frost::SigningPackage {
-        message: message.clone(),
+        message: message.to_vec(),
         signing_commitments: commitments,
     };
 
@@ -55,7 +55,7 @@ fn check_sign_with_dealer() {
     // key (aka verification key).
     assert!(pubkeys
         .group_public
-        .verify(&message.as_slice(), &group_signature)
+        .verify(&message, &group_signature)
         .is_ok());
 
     // TODO: also check that the SharePackage.group_public also verifies the group signature.
