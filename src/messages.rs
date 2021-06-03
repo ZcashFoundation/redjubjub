@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[cfg(test)]
+use proptest_derive::Arbitrary;
+
+#[cfg(test)]
 mod arbitrary;
 mod constants;
 mod serialize;
@@ -20,6 +23,7 @@ mod validate;
 /// The serialization design specifies that `Secret` is a [`jubjub::Scalar`] that uses:
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct Secret([u8; 32]);
 
 /// Define our own `Commitment` type instead of using [`frost::Commitment`].
@@ -27,6 +31,7 @@ pub struct Secret([u8; 32]);
 /// The serialization design specifies that `Commitment` is an [`jubjub::AffinePoint`] that uses:
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct Commitment([u8; 32]);
 
 impl From<frost::Commitment> for Commitment {
@@ -40,6 +45,7 @@ impl From<frost::Commitment> for Commitment {
 /// The serialization design specifies that `GroupCommitment` is an [`jubjub::AffinePoint`] that uses:
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct GroupCommitment([u8; 32]);
 
 /// Define our own `SignatureResponse` type instead of using [`frost::SignatureResponse`].
@@ -47,6 +53,7 @@ pub struct GroupCommitment([u8; 32]);
 /// The serialization design specifies that `SignatureResponse` is a [`jubjub::Scalar`] that uses:
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct SignatureResponse([u8; 32]);
 
 impl From<signature::Signature<SpendAuth>> for SignatureResponse {
@@ -66,6 +73,7 @@ impl From<signature::Signature<SpendAuth>> for GroupCommitment {
 /// The serialization design specifies that `VerificationKey` is a [`verification_key::VerificationKeyBytes`] that uses:
 /// "a 32-byte little-endian canonical representation".
 #[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct VerificationKey([u8; 32]);
 
 impl From<verification_key::VerificationKey<SpendAuth>> for VerificationKey {
@@ -76,6 +84,7 @@ impl From<verification_key::VerificationKey<SpendAuth>> for VerificationKey {
 
 /// The data required to serialize a frost message.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct Message {
     header: Header,
     payload: Payload,
@@ -93,6 +102,7 @@ pub struct Header {
 
 /// The data required to serialize the payload for a message.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum Payload {
     SharePackage(SharePackage),
     SigningCommitments(SigningCommitments),
@@ -161,6 +171,7 @@ impl From<ParticipantId> for u64 {
 ///
 /// Note: [`frost::SharePackage::public`] can be calculated from [`SharePackage::secret_share`].
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct SharePackage {
     /// The public signing key that represents the entire group:
     /// [`frost::SharePackage::group_public`].
@@ -180,6 +191,7 @@ pub struct SharePackage {
 /// Each signer must send this message to the aggregator.
 /// A signing commitment from the first round of the signing protocol.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct SigningCommitments {
     /// The hiding point: [`frost::SigningCommitments::hiding`]
     hiding: Commitment,
@@ -192,6 +204,7 @@ pub struct SigningCommitments {
 /// The aggregator decides what message is going to be signed and
 /// sends it to each signer with all the commitments collected.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct SigningPackage {
     /// The collected commitments for each signer as a hashmap of
     /// unique participant identifiers: [`frost::SigningPackage::signing_commitments`]
@@ -233,6 +246,7 @@ impl From<SigningPackage> for frost::SigningPackage {
 /// Each signer sends their signatures to the aggregator who is going to collect them
 /// and generate a final spend signature.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct SignatureShare {
     /// This participant's signature over the message: [`frost::SignatureShare::signature`]
     signature: SignatureResponse,
@@ -242,6 +256,7 @@ pub struct SignatureShare {
 ///
 /// The final signature is broadcasted by the aggregator to all signers.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct AggregateSignature {
     /// The aggregated group commitment: [`signature::Signature::r_bytes`] returned by [`frost::aggregate()`]
     group_commitment: GroupCommitment,
