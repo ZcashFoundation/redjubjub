@@ -160,7 +160,12 @@ fn serialize_sharepackage() {
 
     // check payload serialization/deserialization
     let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
-    // remove the padding. TODO: why is this happening ?
+    // check the message type is correct
+    let deserialized_msg_type: MsgType =
+        bincode::deserialize(&payload_serialized_bytes[0..4]).unwrap();
+    assert_eq!(deserialized_msg_type, MsgType::SharePackage);
+
+    // remove the msg_type from the the payload
     payload_serialized_bytes =
         (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
 
@@ -211,7 +216,7 @@ fn validate_signingcommitments() {
     let validate_message = Validate::validate(&message);
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggregator));
 
-    // change the header to valid
+    // change the header to be valid
     let header = create_valid_header(setup.signer1, setup.aggregator);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
@@ -242,7 +247,12 @@ fn serialize_signingcommitments() {
 
     // check payload serialization/deserialization
     let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
-    // remove the padding. TODO: why is this happening ?
+    // check the message type is correct
+    let deserialized_msg_type: MsgType =
+        bincode::deserialize(&payload_serialized_bytes[0..4]).unwrap();
+    assert_eq!(deserialized_msg_type, MsgType::SigningCommitments);
+
+    // remove the msg_type from the the payload
     payload_serialized_bytes =
         (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
 
@@ -364,7 +374,13 @@ fn serialize_signingpackage() {
 
     // check payload serialization/deserialization
     let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
-    // remove the padding. TODO: why is this happening ?
+
+    // check the message type is correct
+    let deserialized_msg_type: MsgType =
+        bincode::deserialize(&payload_serialized_bytes[0..4]).unwrap();
+    assert_eq!(deserialized_msg_type, MsgType::SigningPackage);
+
+    // remove the msg_type from the the payload
     payload_serialized_bytes =
         (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
 
@@ -435,7 +451,7 @@ fn validate_signatureshare() {
     let validate_message = Validate::validate(&message);
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeAggregator));
 
-    // change the header to valid
+    // change the header to be valid
     let header = create_valid_header(setup.signer1, setup.aggregator);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
@@ -483,7 +499,13 @@ fn serialize_signatureshare() {
 
     // check payload serialization/deserialization
     let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
-    // remove the padding. TODO: why is this happening ?
+
+    // check the message type is correct
+    let deserialized_msg_type: MsgType =
+        bincode::deserialize(&payload_serialized_bytes[0..4]).unwrap();
+    assert_eq!(deserialized_msg_type, MsgType::SignatureShare);
+
+    // remove the msg_type from the the payload
     payload_serialized_bytes =
         (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
 
@@ -564,7 +586,7 @@ fn validate_aggregatesignature() {
     let validate_message = Validate::validate(&message);
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
 
-    // change the header to valid
+    // change the header to be valid
     let header = create_valid_header(setup.aggregator, setup.signer1);
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
@@ -635,7 +657,13 @@ fn serialize_aggregatesignature() {
 
     // check payload serialization/deserialization
     let mut payload_serialized_bytes = bincode::serialize(&payload).unwrap();
-    // remove the padding. TODO: why is this happening ?
+
+    // check the message type is correct
+    let deserialized_msg_type: MsgType =
+        bincode::deserialize(&payload_serialized_bytes[0..4]).unwrap();
+    assert_eq!(deserialized_msg_type, MsgType::AggregateSignature);
+
+    // remove the msg_type from the the payload
     payload_serialized_bytes =
         (&payload_serialized_bytes[4..payload_serialized_bytes.len()]).to_vec();
 
@@ -657,7 +685,6 @@ fn btreemap() {
 
     let (_nonce, commitment) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
 
-    // try with only 1 commitment
     let commitments = vec![commitment[0]];
     let participants = vec![setup.signer1];
     let signing_commitments = create_signing_commitments(commitments, participants);

@@ -112,9 +112,11 @@ pub enum Payload {
 }
 
 /// The numeric values used to identify each [`Payload`] variant during serialization.
-#[repr(u8)]
+// TODO: spec says `#[repr(u8)]` but it is incompatible with `bincode`
+// manual serialization and deserialization is needed.
+#[repr(u32)]
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 enum MsgType {
     SharePackage,
     SigningCommitments,
