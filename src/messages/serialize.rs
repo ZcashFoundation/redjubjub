@@ -1,9 +1,9 @@
-//! Serialization rules specified in [RFC-001#serializationdeserialization]
+//! Serialization rules specified in [RFC-001#Serialize-Deserialize]
 //!
 //! We automatically serialize and deserialize using serde derivations where possible.
 //! Sometimes we need to implement ourselves, this file holds that code.
 //!
-//! [RFC-001#rules]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md#serializationdeserialization
+//! [RFC-001#Serialize-Deserialize]: https://github.com/ZcashFoundation/redjubjub/blob/main/rfcs/0001-messages.md#serializationdeserialization
 
 use serde::ser::{Serialize, Serializer};
 
