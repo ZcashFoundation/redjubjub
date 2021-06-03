@@ -1,6 +1,6 @@
 // -*- mode: rust; -*-
 //
-// This file is part of redjubjub.
+// This file is part of reddsa.
 // Copyright (c) 2019-2021 Zcash Foundation
 // See LICENSE for licensing information.
 //
@@ -8,7 +8,7 @@
 // - Deirdre Connolly <deirdre@zfnd.org>
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
-#![doc(html_root_url = "https://docs.rs/redjubjub/0.2.2")]
+#![doc(html_root_url = "https://docs.rs/reddsa/0.0.0")]
 #![cfg_attr(feature = "nightly", feature(external_doc))]
 #![cfg_attr(feature = "nightly", doc(include = "../README.md"))]
 #![deny(missing_docs)]
@@ -20,13 +20,14 @@ mod constants;
 mod error;
 pub mod frost;
 mod hash;
+pub mod sapling;
 mod scalar_mul;
 mod signature;
 mod signing_key;
 mod verification_key;
 
-/// An element of the JubJub scalar field used for randomization of public and secret keys.
-pub type Randomizer = jubjub::Scalar;
+/// An element of the protocol's scalar field used for randomization of public and secret keys.
+pub type Randomizer<S> = <S as private::Sealed<S>>::Scalar;
 
 use hash::HStar;
 
@@ -47,31 +48,57 @@ pub use verification_key::{VerificationKey, VerificationKeyBytes};
 /// parameter.
 ///
 /// [concretereddsa]: https://zips.z.cash/protocol/protocol.pdf#concretereddsa
-pub trait SigType: private::Sealed {}
+pub trait SigType: private::Sealed<Self> {}
 
-/// A type variable corresponding to Zcash's `BindingSig`.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum Binding {}
-impl SigType for Binding {}
+/// A trait corresponding to `BindingSig` in Zcash protocols.
+pub trait Binding: SigType {}
 
-/// A type variable corresponding to Zcash's `SpendAuthSig`.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum SpendAuth {}
-impl SigType for SpendAuth {}
+/// A trait corresponding to `SpendAuthSig` in Zcash protocols.
+pub trait SpendAuth: SigType {}
 
 pub(crate) mod private {
     use super::*;
-    pub trait Sealed: Copy + Clone + Eq + PartialEq + std::fmt::Debug {
-        fn basepoint() -> jubjub::ExtendedPoint;
+
+    pub trait SealedScalar {
+        fn from_bytes_wide(bytes: &[u8; 64]) -> Self;
+        fn from_raw(val: [u64; 4]) -> Self;
     }
-    impl Sealed for Binding {
+
+    impl SealedScalar for jubjub::Scalar {
+        fn from_bytes_wide(bytes: &[u8; 64]) -> Self {
+            jubjub::Scalar::from_bytes_wide(bytes)
+        }
+        fn from_raw(val: [u64; 4]) -> Self {
+            jubjub::Scalar::from_raw(val)
+        }
+    }
+
+    pub trait Sealed<T: SigType>:
+        Copy + Clone + Default + Eq + PartialEq + std::fmt::Debug
+    {
+        const H_STAR_PERSONALIZATION: &'static [u8; 16];
+        type Scalar: group::ff::PrimeField + SealedScalar;
+        type Point: group::cofactor::CofactorCurve<Scalar = Self::Scalar>
+            + scalar_mul::VartimeMultiscalarMul<Scalar = Self::Scalar, Point = Self::Point>;
+
+        fn basepoint() -> T::Point;
+    }
+    impl Sealed<sapling::Binding> for sapling::Binding {
+        const H_STAR_PERSONALIZATION: &'static [u8; 16] = b"Zcash_RedJubjubH";
+        type Point = jubjub::ExtendedPoint;
+        type Scalar = jubjub::Scalar;
+
         fn basepoint() -> jubjub::ExtendedPoint {
             jubjub::AffinePoint::from_bytes(constants::BINDINGSIG_BASEPOINT_BYTES)
                 .unwrap()
                 .into()
         }
     }
-    impl Sealed for SpendAuth {
+    impl Sealed<sapling::SpendAuth> for sapling::SpendAuth {
+        const H_STAR_PERSONALIZATION: &'static [u8; 16] = b"Zcash_RedJubjubH";
+        type Point = jubjub::ExtendedPoint;
+        type Scalar = jubjub::Scalar;
+
         fn basepoint() -> jubjub::ExtendedPoint {
             jubjub::AffinePoint::from_bytes(constants::SPENDAUTHSIG_BASEPOINT_BYTES)
                 .unwrap()

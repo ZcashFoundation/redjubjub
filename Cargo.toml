@@ -1,18 +1,23 @@
 [package]
-name = "redjubjub"
+name = "reddsa"
 edition = "2018"
 # When releasing to crates.io:
 # - Update html_root_url
 # - Update CHANGELOG.md
 # - Create git tag.
-version = "0.4.0"
-authors = ["Henry de Valence <hdevalence@hdevalence.ca>", "Deirdre Connolly <durumcrustulum@gmail.com>", "Chelsea Komlo <me@chelseakomlo.com>"]
+version = "0.0.0"
+authors = [
+    "Henry de Valence <hdevalence@hdevalence.ca>",
+    "Deirdre Connolly <durumcrustulum@gmail.com>",
+    "Chelsea Komlo <me@chelseakomlo.com>",
+    "Jack Grigg <jack@electriccoin.co>",
+]
 readme = "README.md"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/ZcashFoundation/redjubjub"
+repository = "https://github.com/zcash/reddsa"
 categories = ["cryptography"]
-keywords = ["cryptography", "crypto", "jubjub", "redjubjub", "zcash"]
-description = "A standalone implementation of the RedJubjub signature scheme."
+keywords = ["cryptography", "crypto", "zcash"]
+description = "A standalone implementation of the RedDSA signature scheme."
 
 [package.metadata.docs.rs]
 features = ["nightly"]
@@ -21,14 +26,12 @@ features = ["nightly"]
 blake2b_simd = "0.5"
 byteorder = "1.4"
 digest = "0.9"
-jubjub = "0.6"
+group = "0.10"
+jubjub = "0.7"
 rand_core = "0.6"
 serde = { version = "1", optional = true, features = ["derive"] }
 thiserror = "1.0"
 zeroize = { version = "1", default-features = false, features = ["zeroize_derive"] }
-
-# Temporary workaround for https://github.com/myrrlyn/funty/issues/3
-funty = "=1.1.0"
 
 [dev-dependencies]
 bincode = "1"

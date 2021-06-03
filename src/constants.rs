@@ -1,6 +1,6 @@
 // -*- mode: rust; -*-
 //
-// This file is part of redjubjub.
+// This file is part of reddsa.
 // Copyright (c) 2019-2021 Zcash Foundation
 // See LICENSE for licensing information.
 //
