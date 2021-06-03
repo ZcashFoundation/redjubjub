@@ -531,47 +531,7 @@ fn serialize_signatureshare() {
 
 #[test]
 fn validate_aggregatesignature() {
-    let mut setup = basic_setup();
-
-    // aggregator creates the shares and pubkeys for this round
-    let (shares, pubkeys) =
-        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
-
-    let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces>> =
-        std::collections::HashMap::with_capacity(setup.threshold as usize);
-    let mut commitments: Vec<frost::SigningCommitments> =
-        Vec::with_capacity(setup.threshold as usize);
-
-    // aggregator generates nonces and signing commitments for each participant.
-    for participant_index in 1..(setup.threshold + 1) {
-        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut setup.rng);
-        nonces.insert(participant_index as u64, nonce);
-        commitments.push(commitment[0]);
-    }
-
-    // aggregator generates a signing package
-    let mut signature_shares: Vec<frost::SignatureShare> =
-        Vec::with_capacity(setup.threshold as usize);
-    let message = "message to sign".as_bytes().to_vec();
-    let signing_package = frost::SigningPackage {
-        message: message.clone(),
-        signing_commitments: commitments,
-    };
-
-    // each participant generates their signature share
-    for (participant_index, nonce) in nonces {
-        let share_package = shares
-            .iter()
-            .find(|share| participant_index == share.index)
-            .unwrap();
-        let nonce_to_use = nonce[0];
-        let signature_share = frost::sign(&signing_package, nonce_to_use, share_package).unwrap();
-        signature_shares.push(signature_share);
-    }
-
-    // aggregator generate the final signature
-    let group_signature_res =
-        frost::aggregate(&signing_package, &signature_shares[..], &pubkeys).unwrap();
+    let (setup, group_signature_res) = full_setup();
 
     // this header is invalid
     let header = create_valid_header(setup.signer1, setup.aggregator);
@@ -610,47 +570,7 @@ fn validate_aggregatesignature() {
 
 #[test]
 fn serialize_aggregatesignature() {
-    let mut setup = basic_setup();
-
-    // aggregator creates the shares and pubkeys for this round
-    let (shares, pubkeys) =
-        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
-
-    let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces>> =
-        std::collections::HashMap::with_capacity(setup.threshold as usize);
-    let mut commitments: Vec<frost::SigningCommitments> =
-        Vec::with_capacity(setup.threshold as usize);
-
-    // aggregator generates nonces and signing commitments for each participant.
-    for participant_index in 1..(setup.threshold + 1) {
-        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut setup.rng);
-        nonces.insert(participant_index as u64, nonce);
-        commitments.push(commitment[0]);
-    }
-
-    // aggregator generates a signing package
-    let mut signature_shares: Vec<frost::SignatureShare> =
-        Vec::with_capacity(setup.threshold as usize);
-    let message = "message to sign".as_bytes().to_vec();
-    let signing_package = frost::SigningPackage {
-        message: message.clone(),
-        signing_commitments: commitments,
-    };
-
-    // each participant generates their signature share
-    for (participant_index, nonce) in nonces {
-        let share_package = shares
-            .iter()
-            .find(|share| participant_index == share.index)
-            .unwrap();
-        let nonce_to_use = nonce[0];
-        let signature_share = frost::sign(&signing_package, nonce_to_use, share_package).unwrap();
-        signature_shares.push(signature_share);
-    }
-
-    // aggregator generate the final signature
-    let group_signature_res =
-        frost::aggregate(&signing_package, &signature_shares[..], &pubkeys).unwrap();
+    let (setup, group_signature_res) = full_setup();
 
     let header = create_valid_header(setup.aggregator, setup.signer1);
 
@@ -796,6 +716,51 @@ fn basic_setup() -> Setup {
         signer1: ParticipantId::Signer(0),
         signer2: ParticipantId::Signer(1),
     }
+}
+
+fn full_setup() -> (Setup, signature::Signature<SpendAuth>) {
+    let mut setup = basic_setup();
+
+    // aggregator creates the shares and pubkeys for this round
+    let (shares, pubkeys) =
+        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
+
+    let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces>> =
+        std::collections::HashMap::with_capacity(setup.threshold as usize);
+    let mut commitments: Vec<frost::SigningCommitments> =
+        Vec::with_capacity(setup.threshold as usize);
+
+    // aggregator generates nonces and signing commitments for each participant.
+    for participant_index in 1..(setup.threshold + 1) {
+        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut setup.rng);
+        nonces.insert(participant_index as u64, nonce);
+        commitments.push(commitment[0]);
+    }
+
+    // aggregator generates a signing package
+    let mut signature_shares: Vec<frost::SignatureShare> =
+        Vec::with_capacity(setup.threshold as usize);
+    let message = "message to sign".as_bytes().to_vec();
+    let signing_package = frost::SigningPackage {
+        message: message.clone(),
+        signing_commitments: commitments,
+    };
+
+    // each participant generates their signature share
+    for (participant_index, nonce) in nonces {
+        let share_package = shares
+            .iter()
+            .find(|share| participant_index == share.index)
+            .unwrap();
+        let nonce_to_use = nonce[0];
+        let signature_share = frost::sign(&signing_package, nonce_to_use, share_package).unwrap();
+        signature_shares.push(signature_share);
+    }
+
+    // aggregator generate the final signature
+    let final_signature =
+        frost::aggregate(&signing_package, &signature_shares[..], &pubkeys).unwrap();
+    (setup, final_signature)
 }
 
 fn generate_share_commitment(
