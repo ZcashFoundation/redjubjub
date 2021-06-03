@@ -58,7 +58,8 @@ impl Validate for Message {
                 }
             }
         }
-
+        self.header.validate()?;
+        self.payload.validate()?;
         Ok(self)
     }
 }

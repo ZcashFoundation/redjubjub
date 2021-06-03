@@ -299,7 +299,7 @@ fn validate_signingpackage() {
 
     let big_message = [0u8; constants::ZCASH_MAX_PROTOCOL_MESSAGE_LEN + 1].to_vec();
     let payload = Payload::SigningPackage(SigningPackage {
-        signing_commitments,
+        signing_commitments: signing_commitments.clone(),
         message: big_message,
     });
     let validate_payload = Validate::validate(&payload);
@@ -324,6 +324,10 @@ fn validate_signingpackage() {
     assert_eq!(validate_message, Err(MsgErr::ReceiverMustBeSigner));
 
     let header = create_valid_header(setup.aggregator, setup.signer1);
+    let payload = Payload::SigningPackage(SigningPackage {
+        signing_commitments,
+        message: "hola".as_bytes().to_vec(),
+    });
 
     let validate_message = Validate::validate(&Message { header, payload }).err();
     assert_eq!(validate_message, None);
