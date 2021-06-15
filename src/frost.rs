@@ -62,7 +62,7 @@ impl From<jubjub::ExtendedPoint> for Public {
 /// reconstruct the secret; in this case we use Shamir's secret sharing.
 #[derive(Clone)]
 pub struct Share {
-    receiver_index: u64,
+    receiver_id: u64,
     value: Secret,
     commitment: ShareCommitment,
 }
@@ -102,8 +102,8 @@ pub struct GroupCommitment(jubjub::AffinePoint);
 pub struct SharePackage {
     /// The public signing key that represents the entire group.
     pub(crate) group_public: VerificationKey<SpendAuth>,
-    /// Denotes the participant index each share is owned by.
-    pub index: u64,
+    /// Denotes the participant id each share is owned by.
+    pub id: u64,
     /// This participant's public key.
     pub(crate) public: Public,
     /// This participant's share.
@@ -125,7 +125,7 @@ impl TryFrom<SharePackage> for KeyPackage {
         verify_share(&sharepackage.share)?;
 
         Ok(KeyPackage {
-            index: sharepackage.index,
+            id: sharepackage.id,
             secret_share: sharepackage.share.value,
             public: sharepackage.public,
             group_public: sharepackage.group_public,
@@ -141,7 +141,7 @@ impl TryFrom<SharePackage> for KeyPackage {
 /// [`KeyPackage`]s, which they store to later use during signing.
 #[allow(dead_code)]
 pub struct KeyPackage {
-    index: u64,
+    id: u64,
     secret_share: Secret,
     public: Public,
     group_public: VerificationKey<SpendAuth>,
@@ -186,13 +186,13 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
     for share in shares {
         let signer_public = Public(SpendAuth::basepoint() * share.value.0);
         sharepackages.push(SharePackage {
-            index: share.receiver_index,
+            id: share.receiver_id,
             share: share.clone(),
             public: signer_public,
             group_public,
         });
 
-        signer_pubkeys.insert(share.receiver_index, signer_public);
+        signer_pubkeys.insert(share.receiver_id, signer_public);
     }
 
     Ok((
@@ -213,7 +213,7 @@ pub fn keygen_with_dealer<R: RngCore + CryptoRng>(
 fn verify_share(share: &Share) -> Result<(), &'static str> {
     let f_result = SpendAuth::basepoint() * share.value.0;
 
-    let x = Scalar::from(share.receiver_index as u64);
+    let x = Scalar::from(share.receiver_id as u64);
 
     let (_, result) = share.commitment.0.iter().fold(
         (Scalar::one(), jubjub::ExtendedPoint::identity()),
@@ -325,7 +325,7 @@ fn generate_shares<R: RngCore + CryptoRng>(
         value += secret.0;
 
         shares.push(Share {
-            receiver_index: id,
+            receiver_id: id,
             value: Secret(value),
             commitment: commitment.clone(),
         });
@@ -387,16 +387,16 @@ impl SigningNonces {
 /// SigningCommitment can be used for exactly *one* signature.
 #[derive(Copy, Clone)]
 pub struct SigningCommitments {
-    index: u64,
+    id: u64,
     hiding: jubjub::ExtendedPoint,
     binding: jubjub::ExtendedPoint,
 }
 
 impl From<(u64, &SigningNonces)> for SigningCommitments {
     /// For SpendAuth signatures only, not Binding signatures, in RedJubjub/Zcash.
-    fn from((index, nonces): (u64, &SigningNonces)) -> Self {
+    fn from((id, nonces): (u64, &SigningNonces)) -> Self {
         Self {
-            index,
+            id,
             hiding: SpendAuth::basepoint() * nonces.hiding,
             binding: SpendAuth::basepoint() * nonces.binding,
         }
@@ -423,8 +423,8 @@ pub struct SignatureResponse(Scalar);
 /// with all other signer's shares into the joint signature.
 #[derive(Clone, Copy, Default)]
 pub struct SignatureShare {
-    /// Represents the participant index.
-    pub(crate) index: u64,
+    /// Represents the participant id.
+    pub(crate) id: u64,
     /// This participant's signature over the message.
     pub(crate) signature: SignatureResponse,
 }
@@ -468,7 +468,7 @@ impl SignatureShare {
 // https://github.com/ZcashFoundation/redjubjub/issues/111
 pub fn preprocess<R>(
     num_nonces: u8,
-    participant_index: u64,
+    participant_id: u64,
     rng: &mut R,
 ) -> (Vec<SigningNonces>, Vec<SigningCommitments>)
 where
@@ -479,7 +479,7 @@ where
 
     for _ in 0..num_nonces {
         let nonces = SigningNonces::new(rng);
-        signing_commitments.push(SigningCommitments::from((participant_index, &nonces)));
+        signing_commitments.push(SigningCommitments::from((participant_id, &nonces)));
         signing_nonces.push(nonces);
     }
 
@@ -488,7 +488,7 @@ where
 
 /// Generates the binding factor that ensures each signature share is strongly
 /// bound to a signing set, specific set of commitments, and a specific message.
-fn gen_rho_i(index: u64, signing_package: &SigningPackage) -> Scalar {
+fn gen_rho_i(id: u64, signing_package: &SigningPackage) -> Scalar {
     // Hash signature message with HStar before deriving the binding factor.
     //
     // To avoid a collision with other inputs to the hash that generates the
@@ -500,11 +500,11 @@ fn gen_rho_i(index: u64, signing_package: &SigningPackage) -> Scalar {
     let mut hasher = HStar::default();
     hasher
         .update("FROST_rho".as_bytes())
-        .update(index.to_be_bytes())
+        .update(id.to_be_bytes())
         .update(message_hash.to_bytes());
 
     for item in signing_package.signing_commitments.iter() {
-        hasher.update(item.index.to_be_bytes());
+        hasher.update(item.id.to_be_bytes());
         let hiding_bytes = jubjub::AffinePoint::from(item.hiding).to_bytes();
         hasher.update(hiding_bytes);
         let binding_bytes = jubjub::AffinePoint::from(item.binding).to_bytes();
@@ -531,8 +531,8 @@ fn gen_group_commitment(
         }
 
         let rho_i = bindings
-            .get(&commitment.index)
-            .ok_or("No matching commitment index")?;
+            .get(&commitment.id)
+            .ok_or("No matching commitment id")?;
         accumulator += commitment.hiding + (commitment.binding * rho_i)
     }
 
@@ -556,17 +556,17 @@ fn gen_challenge(
 
 /// Generates the lagrange coefficient for the i'th participant.
 fn gen_lagrange_coeff(
-    signer_index: u64,
+    signer_id: u64,
     signing_package: &SigningPackage,
 ) -> Result<Scalar, &'static str> {
     let mut num = Scalar::one();
     let mut den = Scalar::one();
     for commitment in signing_package.signing_commitments.iter() {
-        if commitment.index == signer_index {
+        if commitment.id == signer_id {
             continue;
         }
-        num *= Scalar::from(commitment.index as u64);
-        den *= Scalar::from(commitment.index as u64) - Scalar::from(signer_index as u64);
+        num *= Scalar::from(commitment.id as u64);
+        den *= Scalar::from(commitment.id as u64) - Scalar::from(signer_id as u64);
     }
 
     if den == Scalar::zero() {
@@ -596,11 +596,11 @@ pub fn sign(
         HashMap::with_capacity(signing_package.signing_commitments.len());
 
     for comm in signing_package.signing_commitments.iter() {
-        let rho_i = gen_rho_i(comm.index, &signing_package);
-        bindings.insert(comm.index, rho_i);
+        let rho_i = gen_rho_i(comm.id, &signing_package);
+        bindings.insert(comm.id, rho_i);
     }
 
-    let lambda_i = gen_lagrange_coeff(share_package.index, &signing_package)?;
+    let lambda_i = gen_lagrange_coeff(share_package.id, &signing_package)?;
 
     let group_commitment = gen_group_commitment(&signing_package, &bindings)?;
 
@@ -611,7 +611,7 @@ pub fn sign(
     );
 
     let participant_rho_i = bindings
-        .get(&share_package.index)
+        .get(&share_package.id)
         .ok_or("No matching binding!")?;
 
     // The Schnorr signature share
@@ -620,7 +620,7 @@ pub fn sign(
         + (lambda_i * share_package.share.value.0 * challenge);
 
     Ok(SignatureShare {
-        index: share_package.index,
+        id: share_package.id,
         signature: SignatureResponse(signature),
     })
 }
@@ -649,8 +649,8 @@ pub fn aggregate(
         HashMap::with_capacity(signing_package.signing_commitments.len());
 
     for comm in signing_package.signing_commitments.iter() {
-        let rho_i = gen_rho_i(comm.index, &signing_package);
-        bindings.insert(comm.index, rho_i);
+        let rho_i = gen_rho_i(comm.id, &signing_package);
+        bindings.insert(comm.id, rho_i);
     }
 
     let group_commitment = gen_group_commitment(&signing_package, &bindings)?;
@@ -658,16 +658,16 @@ pub fn aggregate(
     let challenge = gen_challenge(&signing_package, &group_commitment, &pubkeys.group_public);
 
     for signing_share in signing_shares {
-        let signer_pubkey = pubkeys.signer_pubkeys[&signing_share.index];
-        let lambda_i = gen_lagrange_coeff(signing_share.index, &signing_package)?;
+        let signer_pubkey = pubkeys.signer_pubkeys[&signing_share.id];
+        let lambda_i = gen_lagrange_coeff(signing_share.id, &signing_package)?;
         let signer_commitment = signing_package
             .signing_commitments
             .iter()
-            .find(|comm| comm.index == signing_share.index)
+            .find(|comm| comm.id == signing_share.id)
             .ok_or("No matching signing commitment for signer")?;
 
         let commitment_i =
-            signer_commitment.hiding + (signer_commitment.binding * bindings[&signing_share.index]);
+            signer_commitment.hiding + (signer_commitment.binding * bindings[&signing_share.id]);
 
         signing_share.check_is_valid(&signer_pubkey, lambda_i, commitment_i, challenge)?;
     }
@@ -707,9 +707,9 @@ mod tests {
                 if j == i {
                     continue;
                 }
-                num *= Scalar::from(shares[j].receiver_index as u64);
-                den *= Scalar::from(shares[j].receiver_index as u64)
-                    - Scalar::from(shares[i].receiver_index as u64);
+                num *= Scalar::from(shares[j].receiver_id as u64);
+                den *= Scalar::from(shares[j].receiver_id as u64)
+                    - Scalar::from(shares[i].receiver_id as u64);
             }
             if den == Scalar::zero() {
                 return Err("Duplicate shares provided");
