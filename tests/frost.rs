@@ -19,8 +19,8 @@ fn check_sign_with_dealer() {
     for share in &shares {
         // Generate one (1) nonce and one SigningCommitments instance for each
         // participant, up to _threshold_.
-        let (nonce, commitment) = frost::preprocess(1, share.index, &mut rng);
-        nonces.insert(share.index, nonce);
+        let (nonce, commitment) = frost::preprocess(1, share.id, &mut rng);
+        nonces.insert(share.id, nonce);
         commitments.push(commitment[0]);
     }
 
@@ -35,10 +35,10 @@ fn check_sign_with_dealer() {
     };
 
     // Round 2: each participant generates their signature share
-    for (participant_index, nonce) in nonces {
+    for (participant_id, nonce) in nonces {
         let share_package = shares
             .iter()
-            .find(|share| participant_index == share.index)
+            .find(|share| participant_id == share.id)
             .unwrap();
         let nonce_to_use = nonce[0];
         // Each participant generates their signature share.
