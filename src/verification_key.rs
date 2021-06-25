@@ -19,7 +19,7 @@ use jubjub::Scalar;
 use crate::{Error, Randomizer, SigType, Signature, SpendAuth};
 
 /// A refinement type for `[u8; 32]` indicating that the bytes represent
-/// an encoding of a RedJubJub verification key.
+/// an encoding of a RedJubjub verification key.
 ///
 /// This is useful for representing a compressed verification key; the
 /// [`VerificationKey`] type in this library holds other decompressed state
@@ -53,7 +53,7 @@ impl<T: SigType> Hash for VerificationKeyBytes<T> {
     }
 }
 
-/// A valid RedJubJub verification key.
+/// A valid RedJubjub verification key.
 ///
 /// This type holds decompressed state used in signature verification; if the
 /// verification key may not be used immediately, it is probably better to use
