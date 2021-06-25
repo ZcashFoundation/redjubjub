@@ -22,7 +22,7 @@ proptest! {
                 assert_eq!(pk_bytes_from, pk_bytes_bincode);
 
                 // Check 2: bincode encoding should match original bytes.
-                let bytes_bincode = bincode::serialize(&sk_from).unwrap();
+                let bytes_bincode = bincode::serialize(&sk_from)?;
                 assert_eq!(&bytes[..], &bytes_bincode[..]);
 
                 // Check 3: From encoding should match original bytes.
@@ -41,13 +41,13 @@ proptest! {
     ) {
         let pk_bytes_from = VerificationKeyBytes::<SpendAuth>::from(bytes);
         let pk_bytes_bincode: VerificationKeyBytes::<SpendAuth>
-            = bincode::deserialize(&bytes[..]).unwrap();
+            = bincode::deserialize(&bytes[..])?;
 
         // Check 1: both decoding methods should have the same result.
         assert_eq!(pk_bytes_from, pk_bytes_bincode);
 
         // Check 2: bincode encoding should match original bytes.
-        let bytes_bincode = bincode::serialize(&pk_bytes_from).unwrap();
+        let bytes_bincode = bincode::serialize(&pk_bytes_from)?;
         assert_eq!(&bytes[..], &bytes_bincode[..]);
 
         // Check 3: From encoding should match original bytes.
@@ -68,7 +68,7 @@ proptest! {
             // Both agree on success
             (Ok(pk_try_from), Ok(pk_bincode)) => {
                 // Check 2: bincode encoding should match original bytes
-                let bytes_bincode = bincode::serialize(&pk_try_from).unwrap();
+                let bytes_bincode = bincode::serialize(&pk_try_from)?;
                 assert_eq!(&bytes[..], &bytes_bincode[..]);
                 // Check 3: From encoding should match original bytes
                 let bytes_from: [u8; 32] = pk_bincode.into();
@@ -95,13 +95,13 @@ proptest! {
 
         let sig_bytes_from = Signature::<SpendAuth>::from(bytes);
         let sig_bytes_bincode: Signature::<SpendAuth>
-            = bincode::deserialize(&bytes[..]).unwrap();
+            = bincode::deserialize(&bytes[..])?;
 
         // Check 1: both decoding methods should have the same result.
         assert_eq!(sig_bytes_from, sig_bytes_bincode);
 
         // Check 2: bincode encoding should match original bytes.
-        let bytes_bincode = bincode::serialize(&sig_bytes_from).unwrap();
+        let bytes_bincode = bincode::serialize(&sig_bytes_from)?;
         assert_eq!(&bytes[..], &bytes_bincode[..]);
 
         // Check 3: From encoding should match original bytes.

@@ -557,7 +557,8 @@ fn gen_lagrange_coeff(
         return Err("Duplicate shares provided");
     }
 
-    // TODO: handle this unwrap better like other CtOption's
+    // We know `den` is not zero by the return above.
+    // So we can unwrap() the denominator inverse safely here.
     let lagrange_coeff = num * den.invert().unwrap();
 
     Ok(lagrange_coeff)
@@ -698,6 +699,9 @@ mod tests {
             if den == Scalar::zero() {
                 return Err("Duplicate shares provided");
             }
+
+            // We know `den` is not zero by the return above.
+            // So we can unwrap() the denominator inverse safely here.
             lagrange_coeffs.push(num * den.invert().unwrap());
         }
 

@@ -63,16 +63,26 @@ pub(crate) mod private {
     }
     impl Sealed for Binding {
         fn basepoint() -> jubjub::ExtendedPoint {
-            jubjub::AffinePoint::from_bytes(constants::BINDINGSIG_BASEPOINT_BYTES)
-                .unwrap()
-                .into()
+            // XXX-jubjub: should not use CtOption here
+            let maybe_affine_point =
+                jubjub::AffinePoint::from_bytes(constants::BINDINGSIG_BASEPOINT_BYTES);
+            if maybe_affine_point.is_some().into() {
+                maybe_affine_point.unwrap().into()
+            } else {
+                panic!("Invalid basepoint: Element not in the curve or non canonical");
+            }
         }
     }
     impl Sealed for SpendAuth {
         fn basepoint() -> jubjub::ExtendedPoint {
-            jubjub::AffinePoint::from_bytes(constants::SPENDAUTHSIG_BASEPOINT_BYTES)
-                .unwrap()
-                .into()
+            // XXX-jubjub: should not use CtOption here
+            let maybe_affine_point =
+                jubjub::AffinePoint::from_bytes(constants::SPENDAUTHSIG_BASEPOINT_BYTES);
+            if maybe_affine_point.is_some().into() {
+                maybe_affine_point.unwrap().into()
+            } else {
+                panic!("Invalid basepoint: Element not in the curve or non canonical");
+            }
         }
     }
 }
