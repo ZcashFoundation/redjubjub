@@ -69,8 +69,8 @@ fn validate_sharepackage() {
 
     let payload = Payload::SharePackage(SharePackage {
         group_public,
-        secret_share: secret_share,
-        share_commitment: share_commitment,
+        secret_share,
+        share_commitment,
     });
     let validate_payload = Validate::validate(&payload);
     let valid_payload = validate_payload.expect("a valid payload").clone();
@@ -101,7 +101,7 @@ fn validate_sharepackage() {
     // change the payload to have only 1 commitment
     let payload = Payload::SharePackage(SharePackage {
         group_public,
-        secret_share: secret_share,
+        secret_share,
         share_commitment: share_commitment.clone(),
     });
     let validate_payload = Validate::validate(&payload);
@@ -151,7 +151,7 @@ fn serialize_sharepackage() {
     });
 
     let message = Message {
-        header: header,
+        header,
         payload: payload.clone(),
     };
 
@@ -246,7 +246,7 @@ fn serialize_signingcommitments() {
     let payload = Payload::SigningCommitments(SigningCommitments { hiding, binding });
 
     let message = Message {
-        header: header,
+        header,
         payload: payload.clone(),
     };
 
@@ -341,7 +341,7 @@ fn validate_signingpackage() {
     let header = create_valid_header(setup.aggregator, setup.dealer);
 
     let message = Message {
-        header: header,
+        header,
         payload: payload.clone(),
     };
 
@@ -377,7 +377,7 @@ fn serialize_signingpackage() {
     });
 
     let message = Message {
-        header: header,
+        header,
         payload: payload.clone(),
     };
 
@@ -472,7 +472,7 @@ fn serialize_signatureshare() {
     let payload = Payload::SignatureShare(SignatureShare { signature });
 
     let message = Message {
-        header: header,
+        header,
         payload: payload.clone(),
     };
 
@@ -622,8 +622,8 @@ fn btreemap() {
 fn create_valid_header(sender: ParticipantId, receiver: ParticipantId) -> Header {
     Validate::validate(&Header {
         version: constants::BASIC_FROST_SERIALIZATION,
-        sender: sender,
-        receiver: receiver,
+        sender,
+        receiver,
     })
     .expect("always a valid header")
     .clone()
@@ -697,8 +697,8 @@ fn full_setup() -> (Setup, signature::Signature<SpendAuth>) {
     let (shares, pubkeys) =
         frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
 
-    let mut nonces: std::collections::HashMap<u64, Vec<frost::SigningNonces>> =
-        std::collections::HashMap::with_capacity(setup.threshold as usize);
+    let mut nonces: HashMap<u64, Vec<frost::SigningNonces>> =
+        HashMap::with_capacity(setup.threshold as usize);
     let mut commitments: Vec<frost::SigningCommitments> =
         Vec::with_capacity(setup.threshold as usize);
 
@@ -714,7 +714,9 @@ fn full_setup() -> (Setup, signature::Signature<SpendAuth>) {
     // aggregator generates a signing package
     let mut signature_shares: Vec<frost::SignatureShare> =
         Vec::with_capacity(setup.threshold as usize);
+
     let message = "message to sign".as_bytes().to_vec();
+
     let signing_package = frost::SigningPackage {
         message: message.clone(),
         signing_commitments: commitments,
