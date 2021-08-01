@@ -8,7 +8,7 @@ use crate::{
 };
 use rand::thread_rng;
 use serde_json;
-use std::convert::TryFrom;
+use std::{collections::HashMap, convert::TryFrom};
 
 #[test]
 fn validate_version() {
@@ -421,25 +421,8 @@ fn serialize_signingpackage() {
 fn validate_signatureshare() {
     let mut setup = basic_setup();
 
-    // signers and aggregator should have this data from `SharePackage`
-    let (shares, _pubkeys) =
-        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
-
-    // create a signing package, this is done in the aggregator side.
-    // the signrs should have this data from `SigningPackage`
-    let (nonce1, commitment1) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
-    let (_nonce2, commitment2) = frost::preprocess(1, u64::from(setup.signer2), &mut setup.rng);
-    let commitments = vec![commitment1[0], commitment2[0]];
-    let participants = vec![setup.signer1, setup.signer2];
-    let signing_commitments = create_signing_commitments(commitments, participants);
-
-    let signing_package = frost::SigningPackage::from(SigningPackage {
-        signing_commitments: signing_commitments.clone(),
-        message: "hola".as_bytes().to_vec(),
-    });
-
     // here we get started with the `SignatureShare` message.
-    let signature_share = frost::sign(&signing_package, nonce1[0], &shares[0]).unwrap();
+    let signature_share = generate_signature_share(&mut setup);
 
     // this header is invalid
     let header = create_valid_header(setup.aggregator, setup.signer1);
@@ -479,25 +462,8 @@ fn validate_signatureshare() {
 fn serialize_signatureshare() {
     let mut setup = basic_setup();
 
-    // signers and aggregator should have this data from `SharePackage`
-    let (shares, _pubkeys) =
-        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
-
-    // create a signing package, this is done in the aggregator side.
-    // the signers should have this data from `SigningPackage`
-    let (nonce1, commitment1) = frost::preprocess(1, u64::from(setup.signer1), &mut setup.rng);
-    let (_nonce2, commitment2) = frost::preprocess(1, u64::from(setup.signer2), &mut setup.rng);
-    let commitments = vec![commitment1[0], commitment2[0]];
-    let participants = vec![setup.signer1, setup.signer2];
-    let signing_commitments = create_signing_commitments(commitments, participants);
-
-    let signing_package = frost::SigningPackage::from(SigningPackage {
-        signing_commitments: signing_commitments.clone(),
-        message: "hola".as_bytes().to_vec(),
-    });
-
     // here we get started with the `SignatureShare` message.
-    let signature_share = frost::sign(&signing_package, nonce1[0], &shares[0]).unwrap();
+    let signature_share = generate_signature_share(&mut setup);
 
     // valid header
     let header = create_valid_header(setup.signer1, setup.aggregator);
@@ -736,10 +702,12 @@ fn full_setup() -> (Setup, signature::Signature<SpendAuth>) {
     let mut commitments: Vec<frost::SigningCommitments> =
         Vec::with_capacity(setup.threshold as usize);
 
-    // aggregator generates nonces and signing commitments for each participant.
-    for participant_index in 1..(setup.threshold + 1) {
-        let (nonce, commitment) = frost::preprocess(1, participant_index as u64, &mut setup.rng);
-        nonces.insert(participant_index as u64, nonce);
+    // Shares represent participants.
+    // The aggregator generates nonces and signing commitments for each participant.
+    for share in &shares {
+        // Generate one nonce and one SigningCommitments instance for each participant.
+        let (nonce, commitment) = frost::preprocess(1, share.index, &mut setup.rng);
+        nonces.insert(share.index, nonce);
         commitments.push(commitment[0]);
     }
 
@@ -802,4 +770,33 @@ fn create_signing_commitments(
             (participant_id, signing_commitment)
         })
         .collect()
+}
+
+fn generate_signature_share(setup: &mut Setup) -> frost::SignatureShare {
+    // signers and aggregator should have this data from `SharePackage`
+    let (shares, _pubkeys) =
+        frost::keygen_with_dealer(setup.num_signers, setup.threshold, setup.rng.clone()).unwrap();
+
+    let mut nonces: HashMap<u64, Vec<frost::SigningNonces>> =
+        HashMap::with_capacity(setup.threshold as usize);
+    let mut commitments: Vec<frost::SigningCommitments> =
+        Vec::with_capacity(setup.threshold as usize);
+
+    // Shares represent participants.
+    for share in &shares {
+        // Generate one nonce and one SigningCommitments instance for each participant.
+        let (nonce, commitment) = frost::preprocess(1, share.index, &mut setup.rng);
+        nonces.insert(share.index, nonce);
+        commitments.push(commitment[0]);
+    }
+
+    let signing_package = frost::SigningPackage {
+        message: "message to sign".as_bytes().to_vec(),
+        signing_commitments: commitments,
+    };
+
+    let signing_share = &shares[0];
+    let signing_nonce = nonces[&signing_share.index][0];
+
+    frost::sign(&signing_package, signing_nonce, &signing_share).unwrap()
 }
