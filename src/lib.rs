@@ -16,7 +16,7 @@ mod constants;
 mod error;
 pub mod frost;
 mod hash;
-mod messages;
+pub mod messages;
 mod scalar_mul;
 pub(crate) mod signature;
 mod signing_key;
