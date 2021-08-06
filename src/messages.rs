@@ -104,10 +104,15 @@ pub struct Header {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum Payload {
+    /// The data required to serialize [`frost::SharePackage`].
     SharePackage(SharePackage),
+    /// The data required to serialize [`frost::SigningCommitments`].
     SigningCommitments(SigningCommitments),
+    /// The data required to serialize [`frost::SigningPackage`].
     SigningPackage(SigningPackage),
+    /// The data required to serialize [`frost::SignatureShare`].
     SignatureShare(SignatureShare),
+    /// The data required to serialize a successful output from [`frost::aggregate()`].
     AggregateSignature(AggregateSignature),
 }
 
