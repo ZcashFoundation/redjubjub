@@ -2,8 +2,9 @@
 
 Entries are listed in reverse chronological order.
 
-## Unreleased
+## 0.5.0
 
+* Upgrade `jubjub` to 0.9, `blake2b_simd` to 1
 * Fixed a bug where small-order verification keys (including the identity) were
   handled inconsistently: the `VerificationKey` parsing logic rejected them, but
   the identity `VerificationKey` could be produced from the zero `SigningKey`.
