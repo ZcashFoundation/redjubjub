@@ -2,10 +2,9 @@
 name = "redjubjub"
 edition = "2018"
 # When releasing to crates.io:
-# - Update html_root_url
 # - Update CHANGELOG.md
 # - Create git tag.
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Henry de Valence <hdevalence@hdevalence.ca>", "Deirdre Connolly <durumcrustulum@gmail.com>", "Chelsea Komlo <me@chelseakomlo.com>"]
 readme = "README.md"
 license = "MIT OR Apache-2.0"
@@ -18,10 +17,10 @@ description = "A standalone implementation of the RedJubjub signature scheme."
 features = ["nightly"]
 
 [dependencies]
-blake2b_simd = "0.5"
+blake2b_simd = "1"
 byteorder = "1.4"
 digest = "0.9"
-jubjub = "0.8"
+jubjub = "0.9"
 rand_core = "0.6"
 serde = { version = "1", optional = true, features = ["derive"] }
 thiserror = "1.0"
