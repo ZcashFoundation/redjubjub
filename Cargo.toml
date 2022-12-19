@@ -17,9 +17,7 @@ description = "A standalone implementation of the RedJubjub signature scheme."
 features = ["nightly"]
 
 [dependencies]
-blake2b_simd = "1"
-byteorder = "1.4"
-jubjub = "0.9"
+reddsa = "0.3.0"
 rand_core = "0.6"
 serde = { version = "1", optional = true, features = ["derive"] }
 thiserror = "1.0"
@@ -28,7 +26,6 @@ zeroize = { version = "1", default-features = false, features = ["zeroize_derive
 [dev-dependencies]
 bincode = "1"
 criterion = "0.3"
-proptest-derive = "0.3"
 lazy_static = "1.4"
 proptest = "1.0"
 rand = "0.8"
