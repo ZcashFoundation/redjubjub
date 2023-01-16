@@ -19,7 +19,6 @@ features = ["nightly"]
 [dependencies]
 blake2b_simd = "1"
 byteorder = "1.4"
-digest = "0.9"
 jubjub = "0.9"
 rand_core = "0.6"
 serde = { version = "1", optional = true, features = ["derive"] }
