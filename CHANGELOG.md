@@ -2,6 +2,10 @@
 
 Entries are listed in reverse chronological order.
 
+## 0.5.1
+
+* Remove unneeded `digest` dependency
+
 ## 0.5.0
 
 * Upgrade `jubjub` to 0.9, `blake2b_simd` to 1
