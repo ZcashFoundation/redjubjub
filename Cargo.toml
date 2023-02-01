@@ -25,7 +25,7 @@ zeroize = { version = "1", default-features = false, features = ["zeroize_derive
 
 [dev-dependencies]
 bincode = "1"
-criterion = "0.3"
+criterion = "0.4"
 lazy_static = "1.4"
 proptest = "1.0"
 rand = "0.8"
