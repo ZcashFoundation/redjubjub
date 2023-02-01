@@ -2,6 +2,11 @@
 
 Entries are listed in reverse chronological order.
 
+## 0.6.0
+
+* Refactor to use `reddsa` (which is a generalization of this crate).
+* Remove FROST code. Use The `reddsa` crate directly if you need it.
+
 ## 0.5.1
 
 * Remove unneeded `digest` dependency

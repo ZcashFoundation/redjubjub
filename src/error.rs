@@ -23,3 +23,13 @@ pub enum Error {
     #[error("Invalid signature.")]
     InvalidSignature,
 }
+
+impl From<reddsa::Error> for Error {
+    fn from(e: reddsa::Error) -> Self {
+        match e {
+            reddsa::Error::MalformedSigningKey => Error::MalformedSigningKey,
+            reddsa::Error::MalformedVerificationKey => Error::MalformedVerificationKey,
+            reddsa::Error::InvalidSignature => Error::InvalidSignature,
+        }
+    }
+}

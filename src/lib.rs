@@ -12,20 +12,15 @@
 #![doc = include_str!("../README.md")]
 
 pub mod batch;
-mod constants;
 mod error;
-pub mod frost;
-mod hash;
-mod messages;
-mod scalar_mul;
 pub(crate) mod signature;
 mod signing_key;
 mod verification_key;
 
-/// An element of the JubJub scalar field used for randomization of public and secret keys.
-pub type Randomizer = jubjub::Scalar;
+use reddsa::sapling;
 
-use hash::HStar;
+/// An element of the JubJub scalar field used for randomization of public and secret keys.
+pub type Randomizer = reddsa::Randomizer<sapling::SpendAuth>;
 
 pub use error::Error;
 pub use signature::Signature;
@@ -59,20 +54,12 @@ impl SigType for SpendAuth {}
 pub(crate) mod private {
     use super::*;
     pub trait Sealed: Copy + Clone + Eq + PartialEq + std::fmt::Debug {
-        fn basepoint() -> jubjub::ExtendedPoint;
+        type RedDSASigType: reddsa::SigType;
     }
     impl Sealed for Binding {
-        fn basepoint() -> jubjub::ExtendedPoint {
-            jubjub::AffinePoint::from_bytes(constants::BINDINGSIG_BASEPOINT_BYTES)
-                .unwrap()
-                .into()
-        }
+        type RedDSASigType = sapling::Binding;
     }
     impl Sealed for SpendAuth {
-        fn basepoint() -> jubjub::ExtendedPoint {
-            jubjub::AffinePoint::from_bytes(constants::SPENDAUTHSIG_BASEPOINT_BYTES)
-                .unwrap()
-                .into()
-        }
+        type RedDSASigType = sapling::SpendAuth;
     }
 }
