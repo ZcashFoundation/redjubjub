@@ -2,6 +2,10 @@
 
 Entries are listed in reverse chronological order.
 
+## 0.7.0
+
+* Update the `reddsa` dependency to version 0.5.0.
+
 ## 0.6.0
 
 * Refactor to use `reddsa` (which is a generalization of this crate).
