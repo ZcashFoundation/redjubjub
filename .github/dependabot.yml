@@ -7,9 +7,9 @@ updates:
     timezone: America/New_York
   open-pull-requests-limit: 10
   reviewers:
-  - dconnolly
+  - conradoplg
   assignees:
-  - dconnolly
+  - conradoplg
 - package-ecosystem: cargo
   directory: "/"
   schedule:
@@ -17,6 +17,6 @@ updates:
     timezone: America/New_York
   open-pull-requests-limit: 10
   reviewers:
-  - dconnolly
+  - conradoplg
   assignees:
-  - dconnolly
+  - conradoplg
