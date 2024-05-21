@@ -36,4 +36,4 @@ jobs:
         run: cargo llvm-cov --lcov > lcov.info
 
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v4.3.0
+        uses: codecov/codecov-action@v4.4.1
