@@ -2,9 +2,14 @@
 
 Entries are listed in reverse chronological order.
 
+## Unreleased
+
+* Enable `no_std` use via a default-enabled `std` feature flag.
+
 ## 0.7.0
 
 * Update the `reddsa` dependency to version 0.5.0.
+* MSRV is now 1.65
 
 ## 0.6.0
 

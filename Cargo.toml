@@ -1,6 +1,6 @@
 [package]
 name = "redjubjub"
-edition = "2018"
+edition = "2021"
 # When releasing to crates.io:
 # - Update CHANGELOG.md
 # - Create git tag.
@@ -17,10 +17,10 @@ description = "A standalone implementation of the RedJubjub signature scheme."
 features = ["nightly"]
 
 [dependencies]
-reddsa = "0.5.0"
-rand_core = "0.6"
-serde = { version = "1", optional = true, features = ["derive"] }
-thiserror = "1.0"
+reddsa = { version = "0.5.0", default-features = false, features = ["alloc"] }
+rand_core = { version = "0.6", default-features = false }
+serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
+thiserror = { version = "1.0", optional = true }
 zeroize = { version = "1", default-features = false, features = ["zeroize_derive"] }
 
 [dev-dependencies]
@@ -34,7 +34,8 @@ serde_json = "1.0"
 
 [features]
 nightly = []
-default = ["serde"]
+default = ["serde", "std"]
+std = ["dep:thiserror", "reddsa/std"]
 
 [[bench]]
 name = "bench"

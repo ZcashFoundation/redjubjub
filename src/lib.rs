@@ -10,6 +10,10 @@
 
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
 
 pub mod batch;
 mod error;
@@ -53,7 +57,7 @@ impl SigType for SpendAuth {}
 
 pub(crate) mod private {
     use super::*;
-    pub trait Sealed: Copy + Clone + Eq + PartialEq + std::fmt::Debug {
+    pub trait Sealed: Copy + Clone + Eq + PartialEq + core::fmt::Debug {
         type RedDSASigType: reddsa::SigType;
     }
     impl Sealed for Binding {
