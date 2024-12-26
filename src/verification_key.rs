@@ -8,7 +8,7 @@
 // - Deirdre Connolly <deirdre@zfnd.org>
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
-use std::{convert::TryFrom, hash::Hash};
+use core::{convert::TryFrom, hash::Hash};
 
 use crate::{Error, Randomizer, SigType, Signature, SpendAuth};
 
@@ -81,7 +81,7 @@ impl<T: SigType> TryFrom<[u8; 32]> for VerificationKey<T> {
     type Error = Error;
 
     fn try_from(bytes: [u8; 32]) -> Result<Self, Self::Error> {
-        use std::convert::TryInto;
+        use core::convert::TryInto;
         VerificationKeyBytes::from(bytes).try_into()
     }
 }
