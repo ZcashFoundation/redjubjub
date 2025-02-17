@@ -4,7 +4,11 @@ Entries are listed in reverse chronological order.
 
 ## Unreleased
 
+## 0.8.0
+
 * Enable `no_std` use via a default-enabled `std` feature flag.
+  If you were using `default-features = false` and relying on std support,
+  you will need to explicitly enable `std`.
 
 ## 0.7.0
 
