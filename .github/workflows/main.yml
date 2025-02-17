@@ -25,7 +25,7 @@ jobs:
     strategy:
       matrix:
         target:
-          - wasm32-wasi
+          - wasm32-wasip1
           - thumbv7em-none-eabihf
     steps:
       - uses: actions/checkout@v4
@@ -35,8 +35,6 @@ jobs:
       # be incompatible with some of these targets.
       - name: Create synthetic crate for testing
         run: cargo init --lib ci-build
-      - name: Copy Rust version into synthetic crate
-        run: cp crate_root/rust-toolchain.toml ci-build/
       - name: Copy patch directives into synthetic crate
         run: |
           echo "[patch.crates-io]" >> ./ci-build/Cargo.toml
