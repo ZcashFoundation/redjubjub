@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 30
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3.3.0
+      - uses: actions/checkout@v4.2.2
         with:
           persist-credentials: false
 
@@ -36,4 +36,4 @@ jobs:
         run: cargo llvm-cov --lcov > lcov.info
 
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v3.1.1
+        uses: codecov/codecov-action@v5.1.2
