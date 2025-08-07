@@ -10,13 +10,3 @@ updates:
   - conradoplg
   assignees:
   - conradoplg
-- package-ecosystem: cargo
-  directory: "/"
-  schedule:
-    interval: daily
-    timezone: America/New_York
-  open-pull-requests-limit: 10
-  reviewers:
-  - conradoplg
-  assignees:
-  - conradoplg
