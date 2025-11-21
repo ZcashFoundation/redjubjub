@@ -7,7 +7,7 @@ jobs:
     name: test on nightly
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     # Because we use nightly features for building docs,
     # using --all-features will fail without nightly toolchain.
     - uses: actions-rs/toolchain@v1.0.7
@@ -28,7 +28,7 @@ jobs:
           - wasm32-wasip1
           - thumbv7em-none-eabihf
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           path: crate_root
       # We use a synthetic crate to ensure no dev-dependencies are enabled, which can
