@@ -17,14 +17,10 @@ jobs:
         persist-credentials: false
     # Because we use nightly features for building docs,
     # using --all-features will fail without nightly toolchain.
-    - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
+    - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master HEAD 2026-08-05
       with:
         toolchain: nightly
-        override: true
-    - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-      with:
-        command: test
-        args: --all-features
+    - run: cargo test --all-features
 
   build-nostd:
     name: Build target ${{ matrix.target }}
