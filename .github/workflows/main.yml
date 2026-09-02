@@ -2,12 +2,19 @@ name: CI
 
 on: [push]
 
+# These jobs only build and test the checkout; nothing writes back to
+# the repository, so read access to the contents is enough.
+permissions:
+  contents: read
+
 jobs:
   test_nightly:
     name: test on nightly
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      with:
+        persist-credentials: false
     # Because we use nightly features for building docs,
     # using --all-features will fail without nightly toolchain.
     - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
@@ -31,6 +38,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           path: crate_root
+          persist-credentials: false
       # We use a synthetic crate to ensure no dev-dependencies are enabled, which can
       # be incompatible with some of these targets.
       - name: Create synthetic crate for testing

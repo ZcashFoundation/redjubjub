@@ -9,6 +9,11 @@ on:
     branches:
       - main
 
+# Coverage only reads the checkout and hands the report to Codecov;
+# nothing writes back to the repository.
+permissions:
+  contents: read
+
 jobs:
 
   coverage:
