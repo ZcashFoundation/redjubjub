@@ -4,6 +4,8 @@ Entries are listed in reverse chronological order.
 
 ## Unreleased
 
+* MSRV is now 1.88, and is declared in `Cargo.toml`.
+
 ## 0.8.0
 
 * Enable `no_std` use via a default-enabled `std` feature flag.
