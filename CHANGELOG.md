@@ -5,6 +5,14 @@ Entries are listed in reverse chronological order.
 ## Unreleased
 
 * MSRV is now 1.88, and is declared in `Cargo.toml`.
+* Update the `rand_core` dependency to version 0.10, and the `rand`,
+  `rand_chacha` dev-dependencies to version 0.10. The public bounds on
+  `SigningKey::new`, `SigningKey::sign` and `batch::Verifier::verify` are now
+  `Rng + CryptoRng` instead of the deprecated `RngCore + CryptoRng`.
+* Track `reddsa` at a git revision while its `rand_core` 0.10 support is
+  unreleased. This adds a `[patch.crates-io]` section pinning `jubjub`,
+  `bls12_381` and `pasta_curves`, since a `[patch]` section in a dependency's
+  own manifest does not apply to dependents.
 
 ## 0.8.0
 
