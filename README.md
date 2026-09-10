@@ -18,14 +18,14 @@ verifying the signature:
 
 ```rust
 # use std::convert::TryFrom;
-use rand::thread_rng;
+use rand::rng;
 use redjubjub::*;
 
 let msg = b"Hello!";
 
 // Generate a secret key and sign the message
-let sk = SigningKey::<Binding>::new(thread_rng());
-let sig = sk.sign(thread_rng(), msg);
+let sk = SigningKey::<Binding>::new(rng());
+let sig = sk.sign(rng(), msg);
 
 // Types can be converted to raw byte arrays using From/Into
 let sig_bytes: [u8; 64] = sig.into();

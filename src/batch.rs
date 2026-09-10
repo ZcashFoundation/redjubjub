@@ -18,7 +18,7 @@
 //! and loss of the ability to easily pinpoint failing signatures.
 //!
 
-use rand_core::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, Rng};
 
 use crate::*;
 
@@ -121,7 +121,7 @@ impl Verifier {
     ///
     /// [ps]: https://zips.z.cash/protocol/protocol.pdf#reddsabatchverify
     #[allow(non_snake_case)]
-    pub fn verify<R: RngCore + CryptoRng>(self, rng: R) -> Result<(), Error> {
+    pub fn verify<R: Rng + CryptoRng>(self, rng: R) -> Result<(), Error> {
         self.0.verify(rng).map_err(|e| e.into())
     }
 }

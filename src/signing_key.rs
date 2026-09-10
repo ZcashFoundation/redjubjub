@@ -12,7 +12,7 @@ use core::convert::{TryFrom, TryInto};
 
 use crate::{Error, Randomizer, SigType, Signature, SpendAuth, VerificationKey};
 
-use rand_core::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, Rng};
 
 /// A RedJubJub signing key.
 #[derive(Copy, Clone, Debug)]
@@ -71,14 +71,14 @@ impl SigningKey<SpendAuth> {
 
 impl<T: SigType> SigningKey<T> {
     /// Generate a new signing key.
-    pub fn new<R: RngCore + CryptoRng>(rng: R) -> SigningKey<T> {
+    pub fn new<R: Rng + CryptoRng>(rng: R) -> SigningKey<T> {
         let reddsa_sk = reddsa::SigningKey::new(rng);
         SigningKey(reddsa_sk)
     }
 
     /// Create a signature of type `T` on `msg` using this `SigningKey`.
     // Similar to signature::Signer but without boxed errors.
-    pub fn sign<R: RngCore + CryptoRng>(&self, rng: R, msg: &[u8]) -> Signature<T> {
+    pub fn sign<R: Rng + CryptoRng>(&self, rng: R, msg: &[u8]) -> Signature<T> {
         let reddsa_sig = self.0.sign(rng, msg);
         Signature(reddsa_sig)
     }

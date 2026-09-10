@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
-use rand::{thread_rng, Rng};
+use rand::{rng, RngExt};
 use redjubjub::*;
 use std::convert::TryFrom;
 
@@ -17,19 +17,19 @@ enum Item {
 
 fn sigs_with_distinct_keys() -> impl Iterator<Item = Item> {
     std::iter::repeat_with(|| {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let msg = b"Bench";
-        match rng.gen::<u8>() % 2 {
+        match rng.random::<u8>() % 2 {
             0 => {
-                let sk = SigningKey::<SpendAuth>::new(thread_rng());
+                let sk = SigningKey::<SpendAuth>::new(&mut rng);
                 let vk_bytes = VerificationKey::from(&sk).into();
-                let sig = sk.sign(thread_rng(), &msg[..]);
+                let sig = sk.sign(&mut rng, &msg[..]);
                 Item::SpendAuth { vk_bytes, sig }
             }
             1 => {
-                let sk = SigningKey::<Binding>::new(thread_rng());
+                let sk = SigningKey::<Binding>::new(&mut rng);
                 let vk_bytes = VerificationKey::from(&sk).into();
-                let sig = sk.sign(thread_rng(), &msg[..]);
+                let sig = sk.sign(&mut rng, &msg[..]);
                 Item::Binding { vk_bytes, sig }
             }
             _ => panic!(),
@@ -83,7 +83,7 @@ fn bench_batch_verify(c: &mut Criterion) {
                             }
                         }
                     }
-                    batch.verify(thread_rng())
+                    batch.verify(rng())
                 })
             },
         );
