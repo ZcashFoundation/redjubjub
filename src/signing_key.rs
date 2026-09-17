@@ -13,9 +13,13 @@ use core::convert::{TryFrom, TryInto};
 use crate::{Error, Randomizer, SigType, Signature, SpendAuth, VerificationKey};
 
 use rand_core::{CryptoRng, Rng};
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A RedJubJub signing key.
-#[derive(Copy, Clone, Debug)]
+///
+/// If the `zeroize` feature is enabled, the secret scalar is zeroized on drop.
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "SerdeHelper"))]
 #[cfg_attr(feature = "serde", serde(into = "SerdeHelper"))]
@@ -29,9 +33,24 @@ impl<'a, T: SigType> From<&'a SigningKey<T>> for VerificationKey<T> {
     }
 }
 
-impl<T: SigType> From<SigningKey<T>> for [u8; 32] {
-    fn from(sk: SigningKey<T>) -> [u8; 32] {
-        sk.0.into()
+#[cfg(feature = "zeroize")]
+impl<T: SigType> Zeroize for SigningKey<T> {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+// The inner `reddsa::SigningKey` zeroizes itself on drop.
+#[cfg(feature = "zeroize")]
+impl<T: SigType> ZeroizeOnDrop for SigningKey<T> {}
+
+impl<T: SigType> SigningKey<T> {
+    /// Returns the canonical byte encoding of the secret scalar.
+    ///
+    /// The returned array is secret key material; the caller is responsible for
+    /// zeroizing it once it is no longer needed.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0.to_bytes()
     }
 }
 
@@ -57,7 +76,7 @@ impl<T: SigType> TryFrom<SerdeHelper> for SigningKey<T> {
 
 impl<T: SigType> From<SigningKey<T>> for SerdeHelper {
     fn from(sk: SigningKey<T>) -> Self {
-        Self(sk.into())
+        Self(sk.to_bytes())
     }
 }
 
@@ -81,5 +100,26 @@ impl<T: SigType> SigningKey<T> {
     pub fn sign<R: Rng + CryptoRng>(&self, rng: R, msg: &[u8]) -> Signature<T> {
         let reddsa_sig = self.0.sign(rng, msg);
         Signature(reddsa_sig)
+    }
+}
+
+#[cfg(all(test, feature = "zeroize"))]
+mod tests {
+    use core::convert::TryFrom;
+
+    use zeroize::Zeroize;
+
+    use super::SigningKey;
+    use crate::SpendAuth;
+
+    #[test]
+    fn zeroize_erases_secret_scalar() {
+        let mut bytes = [0u8; 32];
+        bytes[0] = 7;
+        let mut key = SigningKey::<SpendAuth>::try_from(bytes).unwrap();
+        assert_eq!(key.to_bytes(), bytes);
+
+        key.zeroize();
+        assert_eq!(key.to_bytes(), [0; 32]);
     }
 }

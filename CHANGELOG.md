@@ -4,6 +4,13 @@ Entries are listed in reverse chronological order.
 
 ## Unreleased
 
+* `SigningKey` is no longer `Copy`. It still implements `Clone`.
+* Removed `impl From<SigningKey<T>> for [u8; 32]`; use the new
+  `SigningKey::to_bytes` method instead, which makes extraction of the secret
+  scalar explicit at the call site.
+* Added a `zeroize` feature, enabled by default, under which `SigningKey`
+  implements `zeroize::Zeroize` and `zeroize::ZeroizeOnDrop` and erases its
+  secret scalar on drop. It enables `reddsa/zeroize`.
 * MSRV is now 1.88, and is declared in `Cargo.toml`.
 * Update the `rand_core` dependency to version 0.10, and the `rand`,
   `rand_chacha` dev-dependencies to version 0.10. The public bounds on

@@ -26,7 +26,7 @@ proptest! {
                 assert_eq!(&bytes[..], &bytes_bincode[..]);
 
                 // Check 3: From encoding should match original bytes.
-                let bytes_from: [u8; 32] = sk_bincode.into();
+                let bytes_from: [u8; 32] = sk_bincode.to_bytes();
                 assert_eq!(&bytes[..], &bytes_from[..]);
             }
             // Both agree on failure
