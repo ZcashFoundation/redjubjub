@@ -4,6 +4,8 @@ Entries are listed in reverse chronological order.
 
 ## Unreleased
 
+## 0.9.0
+
 * `SigningKey` is no longer `Copy`. It still implements `Clone`.
 * Removed `impl From<SigningKey<T>> for [u8; 32]`; use the new
   `SigningKey::to_bytes` method instead, which makes extraction of the secret
