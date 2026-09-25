@@ -23,8 +23,7 @@ Entries are listed in reverse chronological order.
   `reddsa/serde`.
 * `Error` now implements `Display` and `core::error::Error` without `std`.
 * MSRV is now 1.88, and is declared in `Cargo.toml`.
-* Update the `rand_core` dependency to version 0.10, and the `rand`,
-  `rand_chacha` dev-dependencies to version 0.10. The public bounds on
+* Update the `rand_core` dependency to version 0.10. The public bounds on
   `SigningKey::new`, `SigningKey::sign` and `batch::Verifier::verify` are now
   `Rng + CryptoRng` instead of the deprecated `RngCore + CryptoRng`.
 
