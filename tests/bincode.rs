@@ -9,7 +9,7 @@ proptest! {
     fn secretkey_serialization(
         bytes in prop::array::uniform32(any::<u8>()),
     ) {
-        let sk_result_from = SigningKey::<SpendAuth>::try_from(bytes);
+        let sk_result_from = SigningKey::<SpendAuth>::from_bytes(&bytes);
         let sk_result_bincode: Result<SigningKey::<SpendAuth>, _>
             = bincode::deserialize(&bytes[..]);
 
@@ -31,7 +31,7 @@ proptest! {
             }
             // Both agree on failure
             (Err(_), Err(_)) => {},
-            _ => panic!("bincode and try_from do not agree"),
+            _ => panic!("bincode and from_bytes do not agree"),
         }
     }
 

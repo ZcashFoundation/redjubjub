@@ -18,7 +18,7 @@ description = "A standalone implementation of the RedJubjub signature scheme."
 features = ["nightly"]
 
 [dependencies]
-reddsa = { git = "https://github.com/nuttycom/reddsa.git", rev = "d0b05e4f691e9562b1c3997cd0dc115af3e4bc8c", default-features = false, features = ["alloc"] }
+reddsa = { version = "0.6", default-features = false, features = ["alloc"] }
 rand_core = { version = "0.10", default-features = false }
 serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
 thiserror = { version = "1.0", optional = true }
@@ -42,8 +42,3 @@ zeroize = ["reddsa/zeroize"]
 [[bench]]
 name = "bench"
 harness = false
-
-[patch.crates-io]
-jubjub = { git = "https://github.com/nuttycom/jubjub.git", rev = "b702b55c0f6a23ff5d867e52a8d815904c45a36e" }
-bls12_381 = { git = "https://github.com/dannywillems/bls12_381.git", rev = "90261e682a44da54ffbc0089ac5aea105ec74cbf" }
-pasta_curves = { git = "https://github.com/zcash/pasta_curves.git", rev = "437d3c08eef2cd7a3c137c2d02e4bce246b1e243" }

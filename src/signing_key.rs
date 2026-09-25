@@ -8,7 +8,7 @@
 // - Deirdre Connolly <deirdre@zfnd.org>
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryFrom;
 
 use crate::{Error, Randomizer, SigType, Signature, SpendAuth, VerificationKey};
 
@@ -19,6 +19,9 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 /// A RedJubJub signing key.
 ///
 /// If the `zeroize` feature is enabled, the secret scalar is zeroized on drop.
+/// Erasure is best effort. It covers the values that this crate and `reddsa`
+/// own. It does not cover the internal state of the hash function, or copies
+/// that the compiler makes in registers or on the stack.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "SerdeHelper"))]
@@ -52,25 +55,27 @@ impl<T: SigType> SigningKey<T> {
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0.to_bytes()
     }
-}
 
-impl<T: SigType> TryFrom<[u8; 32]> for SigningKey<T> {
-    type Error = Error;
-
-    fn try_from(bytes: [u8; 32]) -> Result<Self, Self::Error> {
-        let reddsa_sk = reddsa::SigningKey::<_>::try_from(bytes)?;
+    /// Parses a signing key from the canonical byte encoding of its secret
+    /// scalar.
+    ///
+    /// Returns [`Error::MalformedSigningKey`] if `bytes` is not a canonical
+    /// scalar encoding.
+    pub fn from_bytes(bytes: &[u8; 32]) -> Result<Self, Error> {
+        let reddsa_sk = reddsa::SigningKey::<_>::from_bytes(bytes)?;
         Ok(SigningKey(reddsa_sk))
     }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 struct SerdeHelper([u8; 32]);
 
 impl<T: SigType> TryFrom<SerdeHelper> for SigningKey<T> {
     type Error = Error;
 
     fn try_from(helper: SerdeHelper) -> Result<Self, Self::Error> {
-        helper.0.try_into()
+        SigningKey::from_bytes(&helper.0)
     }
 }
 
@@ -105,8 +110,6 @@ impl<T: SigType> SigningKey<T> {
 
 #[cfg(all(test, feature = "zeroize"))]
 mod tests {
-    use core::convert::TryFrom;
-
     use zeroize::Zeroize;
 
     use super::SigningKey;
@@ -116,7 +119,7 @@ mod tests {
     fn zeroize_erases_secret_scalar() {
         let mut bytes = [0u8; 32];
         bytes[0] = 7;
-        let mut key = SigningKey::<SpendAuth>::try_from(bytes).unwrap();
+        let mut key = SigningKey::<SpendAuth>::from_bytes(&bytes).unwrap();
         assert_eq!(key.to_bytes(), bytes);
 
         key.zeroize();
