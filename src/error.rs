@@ -8,21 +8,19 @@
 // - Deirdre Connolly <deirdre@zfnd.org>
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
-#[cfg(feature = "std")]
 use thiserror::Error;
 
 /// An error related to RedJubJub signatures.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(Error))]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum Error {
     /// The encoding of a signing key was malformed.
-    #[cfg_attr(feature = "std", error("Malformed signing key encoding."))]
+    #[error("Malformed signing key encoding.")]
     MalformedSigningKey,
     /// The encoding of a verification key was malformed.
-    #[cfg_attr(feature = "std", error("Malformed verification key encoding."))]
+    #[error("Malformed verification key encoding.")]
     MalformedVerificationKey,
     /// Signature verification failed.
-    #[cfg_attr(feature = "std", error("Invalid signature."))]
+    #[error("Invalid signature.")]
     InvalidSignature,
 }
 

@@ -18,10 +18,10 @@ description = "A standalone implementation of the RedJubjub signature scheme."
 features = ["nightly"]
 
 [dependencies]
-reddsa = { version = "0.6", default-features = false, features = ["alloc"] }
+reddsa = { version = "0.6.1", default-features = false, features = ["alloc"] }
 rand_core = { version = "0.10", default-features = false }
 serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
-thiserror = { version = "1.0", optional = true }
+thiserror = { version = "2", default-features = false }
 zeroize = { version = "1", default-features = false, features = ["zeroize_derive"] }
 
 [dev-dependencies]
@@ -36,7 +36,8 @@ serde_json = "1.0"
 [features]
 nightly = []
 default = ["serde", "std", "zeroize"]
-std = ["dep:thiserror", "reddsa/std"]
+serde = ["dep:serde", "reddsa/serde"]
+std = ["thiserror/std", "reddsa/std"]
 zeroize = ["reddsa/zeroize"]
 
 [[bench]]

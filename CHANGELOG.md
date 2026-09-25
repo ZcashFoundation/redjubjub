@@ -16,7 +16,10 @@ Entries are listed in reverse chronological order.
   copy of the secret. It enables `reddsa/zeroize`. Erasure is best effort: it
   does not cover the internal state of the hash function, or copies that the
   compiler makes in registers or on the stack.
-* Update the `reddsa` dependency to version 0.6.
+* Update the `reddsa` dependency to version 0.6.1.
+* The `serde` feature can now be used without `std`. It enables
+  `reddsa/serde`.
+* `Error` now implements `Display` and `core::error::Error` without `std`.
 * MSRV is now 1.88, and is declared in `Cargo.toml`.
 * Update the `rand_core` dependency to version 0.10, and the `rand`,
   `rand_chacha` dev-dependencies to version 0.10. The public bounds on
