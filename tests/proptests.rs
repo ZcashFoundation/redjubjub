@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use proptest::prelude::*;
-use rand_core::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, Rng};
 
 use redjubjub::*;
 
@@ -37,7 +37,7 @@ enum Tweak {
 }
 
 impl<T: SigType> SignatureCase<T> {
-    fn new<R: RngCore + CryptoRng>(mut rng: R, msg: Vec<u8>) -> Self {
+    fn new<R: Rng + CryptoRng>(mut rng: R, msg: Vec<u8>) -> Self {
         let sk = SigningKey::new(&mut rng);
         let sig = sk.sign(&mut rng, &msg);
         let pk_bytes = VerificationKey::from(&sk).into();

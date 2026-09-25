@@ -1,10 +1,10 @@
-use rand::thread_rng;
+use rand::rng;
 
 use redjubjub::*;
 
 #[test]
 fn spendauth_batch_verify() {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let mut batch = batch::Verifier::new();
     for _ in 0..32 {
         let sk = SigningKey::<SpendAuth>::new(&mut rng);
@@ -18,7 +18,7 @@ fn spendauth_batch_verify() {
 
 #[test]
 fn binding_batch_verify() {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let mut batch = batch::Verifier::new();
     for _ in 0..32 {
         let sk = SigningKey::<Binding>::new(&mut rng);
@@ -32,7 +32,7 @@ fn binding_batch_verify() {
 
 #[test]
 fn alternating_batch_verify() {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let mut batch = batch::Verifier::new();
     for i in 0..32 {
         let item: batch::Item = match i % 2 {
@@ -59,7 +59,7 @@ fn alternating_batch_verify() {
 
 #[test]
 fn bad_batch_verify() {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let bad_index = 4; // must be even
     let mut batch = batch::Verifier::new();
     let mut items = Vec::new();

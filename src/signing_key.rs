@@ -8,14 +8,21 @@
 // - Deirdre Connolly <deirdre@zfnd.org>
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryFrom;
 
 use crate::{Error, Randomizer, SigType, Signature, SpendAuth, VerificationKey};
 
-use rand_core::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, Rng};
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A RedJubJub signing key.
-#[derive(Copy, Clone, Debug)]
+///
+/// If the `zeroize` feature is enabled, the secret scalar is zeroized on drop.
+/// Erasure is best effort. It covers the values that this crate and `reddsa`
+/// own. It does not cover the internal state of the hash function, or copies
+/// that the compiler makes in registers or on the stack.
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "SerdeHelper"))]
 #[cfg_attr(feature = "serde", serde(into = "SerdeHelper"))]
@@ -29,35 +36,52 @@ impl<'a, T: SigType> From<&'a SigningKey<T>> for VerificationKey<T> {
     }
 }
 
-impl<T: SigType> From<SigningKey<T>> for [u8; 32] {
-    fn from(sk: SigningKey<T>) -> [u8; 32] {
-        sk.0.into()
+#[cfg(feature = "zeroize")]
+impl<T: SigType> Zeroize for SigningKey<T> {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
     }
 }
 
-impl<T: SigType> TryFrom<[u8; 32]> for SigningKey<T> {
-    type Error = Error;
+// The inner `reddsa::SigningKey` zeroizes itself on drop.
+#[cfg(feature = "zeroize")]
+impl<T: SigType> ZeroizeOnDrop for SigningKey<T> {}
 
-    fn try_from(bytes: [u8; 32]) -> Result<Self, Self::Error> {
-        let reddsa_sk = reddsa::SigningKey::<_>::try_from(bytes)?;
+impl<T: SigType> SigningKey<T> {
+    /// Returns the canonical byte encoding of the secret scalar.
+    ///
+    /// The returned array is secret key material; the caller is responsible for
+    /// zeroizing it once it is no longer needed.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0.to_bytes()
+    }
+
+    /// Parses a signing key from the canonical byte encoding of its secret
+    /// scalar.
+    ///
+    /// Returns [`Error::MalformedSigningKey`] if `bytes` is not a canonical
+    /// scalar encoding.
+    pub fn from_bytes(bytes: &[u8; 32]) -> Result<Self, Error> {
+        let reddsa_sk = reddsa::SigningKey::<_>::from_bytes(bytes)?;
         Ok(SigningKey(reddsa_sk))
     }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 struct SerdeHelper([u8; 32]);
 
 impl<T: SigType> TryFrom<SerdeHelper> for SigningKey<T> {
     type Error = Error;
 
     fn try_from(helper: SerdeHelper) -> Result<Self, Self::Error> {
-        helper.0.try_into()
+        SigningKey::from_bytes(&helper.0)
     }
 }
 
 impl<T: SigType> From<SigningKey<T>> for SerdeHelper {
     fn from(sk: SigningKey<T>) -> Self {
-        Self(sk.into())
+        Self(sk.to_bytes())
     }
 }
 
@@ -71,15 +95,34 @@ impl SigningKey<SpendAuth> {
 
 impl<T: SigType> SigningKey<T> {
     /// Generate a new signing key.
-    pub fn new<R: RngCore + CryptoRng>(rng: R) -> SigningKey<T> {
+    pub fn new<R: Rng + CryptoRng>(rng: R) -> SigningKey<T> {
         let reddsa_sk = reddsa::SigningKey::new(rng);
         SigningKey(reddsa_sk)
     }
 
     /// Create a signature of type `T` on `msg` using this `SigningKey`.
     // Similar to signature::Signer but without boxed errors.
-    pub fn sign<R: RngCore + CryptoRng>(&self, rng: R, msg: &[u8]) -> Signature<T> {
+    pub fn sign<R: Rng + CryptoRng>(&self, rng: R, msg: &[u8]) -> Signature<T> {
         let reddsa_sig = self.0.sign(rng, msg);
         Signature(reddsa_sig)
+    }
+}
+
+#[cfg(all(test, feature = "zeroize"))]
+mod tests {
+    use zeroize::Zeroize;
+
+    use super::SigningKey;
+    use crate::SpendAuth;
+
+    #[test]
+    fn zeroize_erases_secret_scalar() {
+        let mut bytes = [0u8; 32];
+        bytes[0] = 7;
+        let mut key = SigningKey::<SpendAuth>::from_bytes(&bytes).unwrap();
+        assert_eq!(key.to_bytes(), bytes);
+
+        key.zeroize();
+        assert_eq!(key.to_bytes(), [0; 32]);
     }
 }

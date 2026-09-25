@@ -4,7 +4,28 @@ Entries are listed in reverse chronological order.
 
 ## Unreleased
 
+## 0.9.0
+
+* `SigningKey` is no longer `Copy`. It still implements `Clone`.
+* Removed `impl From<SigningKey<T>> for [u8; 32]`; use the new
+  `SigningKey::to_bytes` method instead, which makes extraction of the secret
+  scalar explicit at the call site.
+* Removed `impl TryFrom<[u8; 32]> for SigningKey<T>`; use the new
+  `SigningKey::from_bytes` method instead.
+* Added a `zeroize` feature, enabled by default, under which `SigningKey`
+  implements `zeroize::Zeroize` and `zeroize::ZeroizeOnDrop` and erases its
+  secret scalar on drop, and serde (de)serialization of `SigningKey` erases its
+  copy of the secret. It enables `reddsa/zeroize`. Erasure is best effort: it
+  does not cover the internal state of the hash function, or copies that the
+  compiler makes in registers or on the stack.
+* Update the `reddsa` dependency to version 0.6.1.
+* The `serde` feature can now be used without `std`. It enables
+  `reddsa/serde`.
+* `Error` now implements `Display` and `core::error::Error` without `std`.
 * MSRV is now 1.88, and is declared in `Cargo.toml`.
+* Update the `rand_core` dependency to version 0.10. The public bounds on
+  `SigningKey::new`, `SigningKey::sign` and `batch::Verifier::verify` are now
+  `Rng + CryptoRng` instead of the deprecated `RngCore + CryptoRng`.
 
 ## 0.8.0
 

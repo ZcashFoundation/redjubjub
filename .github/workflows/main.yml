@@ -55,3 +55,9 @@ jobs:
       - name: Build for target
         working-directory: ./ci-build
         run: cargo build --verbose --target ${{ matrix.target }}
+      - name: Enable the serde feature
+        working-directory: ./ci-build
+        run: cargo add --no-default-features --features serde --path ../crate_root
+      - name: Build for target with serde
+        working-directory: ./ci-build
+        run: cargo build --verbose --target ${{ matrix.target }}
