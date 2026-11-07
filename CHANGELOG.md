@@ -4,6 +4,14 @@ Entries are listed in reverse chronological order.
 
 ## Unreleased
 
+* Add `batch::Item::from_spendauth_key` and `batch::Item::from_binding_key`
+  to retain decoded verification key points during batch verification and
+  single-item fallback. Named constructors preserve type inference for existing
+  byte-key tuple conversions such as `(vk.into(), sig, msg).into()`.
+* Add conversions from Jubjub extended points to binding verification keys and
+  from spend authorization verification keys to Jubjub affine points, without
+  decompression. Small-order points remain accepted.
+
 ## 0.9.0
 
 * `SigningKey` is no longer `Copy`. It still implements `Clone`.

@@ -27,6 +27,10 @@ use crate::*;
 /// This struct exists to allow batch processing to be decoupled from the
 /// lifetime of the message. This is useful when using the batch verification API
 /// in an async context.
+///
+/// Use [`Item::from_spendauth_key`] or [`Item::from_binding_key`] to retain an
+/// already-decoded verification key. These named constructors keep the existing
+/// byte-key tuple conversions unambiguous.
 #[derive(Clone, Debug)]
 pub struct Item(reddsa::batch::Item<sapling::SpendAuth, sapling::Binding>);
 
@@ -59,6 +63,28 @@ impl<'msg, M: AsRef<[u8]>> From<(VerificationKeyBytes<Binding>, Signature<Bindin
 }
 
 impl Item {
+    /// Create a batch item retaining a spend authorization key's decoded point.
+    ///
+    /// The challenge still hashes the key's canonical encoding.
+    pub fn from_spendauth_key<M: AsRef<[u8]>>(
+        vk: VerificationKey<SpendAuth>,
+        sig: Signature<SpendAuth>,
+        msg: &M,
+    ) -> Self {
+        Self(reddsa::batch::Item::from_spendauth_key(vk.0, sig.0, msg))
+    }
+
+    /// Create a batch item retaining a binding key's decoded point.
+    ///
+    /// The challenge still hashes the key's canonical encoding.
+    pub fn from_binding_key<M: AsRef<[u8]>>(
+        vk: VerificationKey<Binding>,
+        sig: Signature<Binding>,
+        msg: &M,
+    ) -> Self {
+        Self(reddsa::batch::Item::from_binding_key(vk.0, sig.0, msg))
+    }
+
     /// Perform non-batched verification of this `Item`.
     ///
     /// This is useful (in combination with `Item::clone`) for implementing fallback
