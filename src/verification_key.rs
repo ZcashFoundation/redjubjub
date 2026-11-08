@@ -2,6 +2,8 @@
 //
 // This file is part of redjubjub.
 // Copyright (c) 2019-2021 Zcash Foundation
+// Portions copyright (c) The Zakura Contributors, licensed under the MIT license or the
+// Apache License, Version 2.0, at your option.
 // See LICENSE for licensing information.
 //
 // Authors:
@@ -36,6 +38,8 @@ impl<T: SigType> From<VerificationKeyBytes<T>> for [u8; 32] {
     }
 }
 
+// Consensus documentation adapted from zakura-core/common:
+// https://github.com/zakura-core/common/pull/675.
 /// A valid RedJubJub verification key.
 ///
 /// This type holds decompressed state used in signature verification; if the
@@ -44,17 +48,39 @@ impl<T: SigType> From<VerificationKeyBytes<T>> for [u8; 32] {
 ///
 /// ## Consensus properties
 ///
-/// The `TryFrom<VerificationKeyBytes>` conversion performs the following Zcash
-/// consensus rule checks:
-///
-/// 1. The check that the bytes are a canonical encoding of a verification key;
-/// 2. The check that the verification key is not a point of small order.
+/// [`TryFrom<VerificationKeyBytes<T>>`] checks that the bytes canonically encode
+/// a point on the curve. Small-order points, including the identity, are
+/// accepted. Sapling separately rejects small-order spend authorization keys.
 #[derive(PartialEq, Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "VerificationKeyBytes<T>"))]
 #[cfg_attr(feature = "serde", serde(into = "VerificationKeyBytes<T>"))]
 #[cfg_attr(feature = "serde", serde(bound = "T: SigType"))]
 pub struct VerificationKey<T: SigType>(pub(crate) reddsa::VerificationKey<T::RedDSASigType>);
+
+// Adapted from zakura-core/common (https://github.com/zakura-core/common/pull/677).
+impl From<jubjub::ExtendedPoint> for VerificationKey<crate::Binding> {
+    /// Constructs a binding key from an existing valid Jubjub point.
+    ///
+    /// Retains the point and computes its canonical encoding without decoding
+    /// it again. Identity and other small-order points are accepted.
+    /// The point must satisfy Jubjub's curve invariants; release builds trust
+    /// coordinates supplied through unchecked constructors.
+    fn from(point: jubjub::ExtendedPoint) -> Self {
+        Self(reddsa::VerificationKey::from(point))
+    }
+}
+
+// Adapted from zakura-core/common (https://github.com/zakura-core/common/pull/677).
+impl From<VerificationKey<SpendAuth>> for jubjub::AffinePoint {
+    /// Normalizes the stored spend authorization point without decoding it.
+    ///
+    /// Small-order points are preserved; protocol-specific restrictions must
+    /// still be checked by the caller.
+    fn from(key: VerificationKey<SpendAuth>) -> Self {
+        Self::from(key.0)
+    }
+}
 
 impl<T: SigType> From<VerificationKey<T>> for VerificationKeyBytes<T> {
     fn from(pk: VerificationKey<T>) -> VerificationKeyBytes<T> {
