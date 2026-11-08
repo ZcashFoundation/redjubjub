@@ -2,6 +2,8 @@
 //
 // This file is part of redjubjub.
 // Copyright (c) 2019-2021 Zcash Foundation
+// Portions copyright (c) The Zakura Contributors, licensed under the MIT license or the
+// Apache License, Version 2.0, at your option.
 // See LICENSE for licensing information.
 //
 // Authors:
@@ -36,6 +38,8 @@ impl<T: SigType> From<VerificationKeyBytes<T>> for [u8; 32] {
     }
 }
 
+// Consensus documentation adapted from zakura-core/common:
+// https://github.com/zakura-core/common/pull/675.
 /// A valid RedJubJub verification key.
 ///
 /// This type holds decompressed state used in signature verification; if the
@@ -54,6 +58,7 @@ impl<T: SigType> From<VerificationKeyBytes<T>> for [u8; 32] {
 #[cfg_attr(feature = "serde", serde(bound = "T: SigType"))]
 pub struct VerificationKey<T: SigType>(pub(crate) reddsa::VerificationKey<T::RedDSASigType>);
 
+// Adapted from zakura-core/common (https://github.com/zakura-core/common/pull/677).
 impl From<jubjub::ExtendedPoint> for VerificationKey<crate::Binding> {
     /// Constructs a binding key from an existing valid Jubjub point.
     ///
@@ -66,6 +71,7 @@ impl From<jubjub::ExtendedPoint> for VerificationKey<crate::Binding> {
     }
 }
 
+// Adapted from zakura-core/common (https://github.com/zakura-core/common/pull/677).
 impl From<VerificationKey<SpendAuth>> for jubjub::AffinePoint {
     /// Normalizes the stored spend authorization point without decoding it.
     ///
